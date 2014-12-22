@@ -2,39 +2,95 @@ package lithium;
 
 use strict;
 use warnings;
-use Dancer;
 
-our $VERSION = '0.01';
+use Dancer;
+use LWP::UserAgent;
+use Data::Dumper;
+use HTTP::Request::Common ();
+# Add a delete function to LWP, for continuity!
+no strict 'refs';
+if (! defined *{"LWP::UserAgent::delete"}{CODE}) {
+	*{"LWP::UserAgent::delete"} =
+		sub {
+			my ($self, $uri) = @_;
+			$self->request(HTTP::Request::Common::DELETE($uri));
+		};
+}
+
+our $VERSION = '0.1';
+
+my $NODES    = {};
+my %CONFIG   = ();
+my $agent    = LWP::UserAgent->new(agent => __PACKAGE__);
+$agent->default_header(Content_Type => "application/json;charset=UTF-8");
+# pretty sure this violates RFC 2616, oh well
+push @{$agent->requests_redirectable}, 'POST';
+
 
 set serializer => 'JSON';
-set port       => $CONFIG{port};
+set port       => $CONFIG{port} || 3000;
+set logger     => 'console';
+set log        => 'debug';
+set show_errors => 1;
 
-get '/' => sub {
+
+get '/sessions' => sub {
+	debug "Sessions hit\n";
 	# ... hmmm landing page? ... docs ?
+	return 'ok';
 };
-
+get '/wd/hub/sessions' => sub {
+	redirect "/sessions";
+};
 post '/' => sub {
-	# request a session
-	return redirect 'path to phantomjs session', 301;
+	redirect '/session', 301;
 };
-
-post '/wd/hub' => sub {
-	# request a session
-	
-	#lwp call to phantom session
-
-	return redirect 'path to phantomjs session', 301;
+post '/session' => sub {
+	debug "client is requesting a new session (/session)";
+	my $request = from_json(request->body);
+	debug(Dumper($request));
+	for (keys %$NODES) {
+		next unless scalar @{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances};
+		next unless $request->{desiredCapabilities}{browserName} eq $NODES->{$_}{browser};
+		my $res = $agent->post("$NODES->{$_}{url}/session", Content => request->body);
+		if ($res->is_success) {
+			$res = from_json($res->content);
+			$res->{value}{node} = $NODES->{$_}{url};
+			push @{$NODES->{$_}{sessions}}, $res->{sessionId};
+			return to_json($res);
+			last;
+		}
+	}
+	redirect "/next lithium server", 301;
+};
+del '/session/:session_id' => sub {
+	return 'ok';
+};
+post '/wd/hub/session' => sub {
+	debug "client is requesting a new session (/wd/hub/session)";
+	redirect "/session", 301;
 };
 
 post '/grid/register' => sub {
-	# register a node
-	# push to grid list
+	my $node = from_json(request->body);
+	debug "Registering new node ($node->{capabilities}[0]{browserName}"
+		." at $node->{configuration}{url},"
+		." available sessions: $node->{capabilities}[0]{maxInstances})";
+
+	$NODES->{"$node->{configuration}{url}_$node->{capabilities}[0]{browserName}"} =
+		{
+			url           => $node->{configuration}{url},
+			max_instances => $node->{capabilities}[0]{maxInstances},
+			browser       => $node->{capabilities}[0]{browserName},
+			sessions      => [],
+		};
+
+	return "ok";
 };
 
 get qr|/lithium(/v\d)?/health| => sub {
 
 };
-
 get '/lithium/stats' => sub {
 
 };
