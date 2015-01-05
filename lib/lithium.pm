@@ -6,6 +6,7 @@ use warnings;
 use Dancer;
 use LWP::UserAgent;
 use Data::Dumper;
+use YAML::XS;
 use HTTP::Request::Common ();
 # Add a delete function to LWP, for continuity!
 no strict 'refs';
@@ -21,14 +22,58 @@ our $VERSION = '0.1';
 
 my $NODES    = {};
 my %CONFIG   = ();
+my $SESSIONS = {};
 my $agent    = LWP::UserAgent->new(agent => __PACKAGE__);
 $agent->default_header(Content_Type => "application/json;charset=UTF-8");
 # pretty sure this violates RFC 2616, oh well
 push @{$agent->requests_redirectable}, 'POST';
 
+my %CONFIG = (
+	 log           => 'syslog',
+	'log_level'    => 'info',
+	'log_facility' => 'daemon',
+	 port          =>  8910,
+	 gid           => 'lithium',
+	 uid           => 'lithium',
+	 pidfile       => '/var/run/lithium.pid',
+);
 
+my %OPTIONS = (
+	config  => '/etc/ghost.conf',
+);
+
+GetOptions(\%OPTIONS, qw/
+	help|h|?
+	config|c=s
+	port|P=i
+	log|l=s
+	log_level|L=s
+	log_facility|f=s
+	log_file|F=s
+	uid|U=s
+	gid|G=s
+	pidfile|p=s
+	debug|D
+/) or pod2usage(2);
+pod2usage(1) if $OPTIONS{help};
+
+my $config_file;
+if (-f $OPTIONS{config}) {
+	eval { $config_file = LoadFile($OPTIONS{config}); 1 }
+		or die "Failed to load $OPTIONS{config}: $@\n";
+} else {
+	print STDERR "No configuration file found starting|stopping with defaults\n";
+}
+
+for (keys %$config_file) {
+	$CONFIG{$_} = $config_file->{$_};
+	$CONFIG{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+}
+for (keys %OPTIONS) {
+	$CONFIG{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+}
 set serializer => 'JSON';
-set port       => $CONFIG{port} || 3000;
+set port       => $CONFIG{port};
 set logger     => 'console';
 set log        => 'debug';
 set show_errors => 1;
@@ -50,21 +95,36 @@ post '/session' => sub {
 	my $request = from_json(request->body);
 	debug(Dumper($request));
 	for (keys %$NODES) {
-		next unless scalar @{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances};
+		next unless scalar keys %{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances};
 		next unless $request->{desiredCapabilities}{browserName} eq $NODES->{$_}{browser};
 		my $res = $agent->post("$NODES->{$_}{url}/session", Content => request->body);
 		if ($res->is_success) {
 			$res = from_json($res->content);
 			$res->{value}{node} = $NODES->{$_}{url};
-			push @{$NODES->{$_}{sessions}}, $res->{sessionId};
+			$NODES->{$_}{sessions}{$res->{sessionId}} = 1;
+			$SESSIONS->{$res->{sessionId}} = $_; # Reverse hash session -> node
 			return to_json($res);
 			last;
 		}
 	}
-	redirect "/next lithium server", 301;
+	redirect "/next lithium server", 301
+		if $CONFIG{pair};
+	status 404; return;
 };
 del '/session/:session_id' => sub {
+	my $session_id = param('session_id');
+	debug "deleting session: $session_id";
+	my $node = delete $SESSIONS->{$session_id};
+	my $res = $agent->delete("$NODES->{$node}{url}/session/$session_id");
+
+	delete $NODES->{$node}{sessions}{$session_id};
+	debug "Nodes: \n".Dumper($NODES);
+	debug "Sessions: \n".Dumper($SESSIONS);
+	status 204;
 	return 'ok';
+};
+del '/wd/hub/session/:session_id' => sub {
+	forward '/session/'.params->{session_id};
 };
 post '/wd/hub/session' => sub {
 	debug "client is requesting a new session (/wd/hub/session)";
@@ -82,7 +142,7 @@ post '/grid/register' => sub {
 			url           => $node->{configuration}{url},
 			max_instances => $node->{capabilities}[0]{maxInstances},
 			browser       => $node->{capabilities}[0]{browserName},
-			sessions      => [],
+			sessions      => {},
 		};
 
 	return "ok";
@@ -95,7 +155,67 @@ get '/lithium/stats' => sub {
 
 };
 
-dance;
+sub start
+{
+	my $pid = fork;
+	my $pidfile = $CONFIG{pidfile};
+	exit 1 if $pid < 0;
+	if ($pid == 0) {
+		exit if fork;
+
+		my $fh;
+		if (-f $pidfile) {
+			open my $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
+			my $found_pid = <$fh>;
+			close $fh;
+			if (kill "ZERO", $found_pid) {
+				return 1;
+			} else {
+				unlink $pidfile;
+			}
+		}
+		open $fh, ">", $pidfile and do {
+			print $fh "$$";
+			close $fh;
+		};
+		$) = getgrnam($CONFIG{gid}) or die "Unable to set group to $CONFIG{gid}: $!";
+		$> = getpwnam($CONFIG{uid}) or die "Unable to set user to $CONFIG{uid}: $!";
+		open STDOUT, ">/dev/null";
+		open STDERR, ">/dev/null";
+		open STDIN,  "</dev/null";
+		dance;
+		exit 2;
+	}
+
+	waitpid($pid, 0);
+	return $? == 0;
+}
+
+sub stop
+{
+	my $pidfile = $CONFIG{pidfile};
+	return unless -f $pidfile;
+
+	my $fh;
+	open $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
+	my $pid = <$fh>;
+	close $fh;
+
+	kill "TERM", $pid;
+	for (1 .. 2 ) {
+		if (waitpid($pid, WNOHANG)) {
+			unlink $pidfile;
+			return;
+		}
+		sleep 1;
+	}
+
+	kill "KILL", $pid;
+	waitpid($pid, 0);
+	unlink $pidfile;
+	return;
+
+}
 
 =head1 NAME
 
