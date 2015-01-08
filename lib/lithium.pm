@@ -4,9 +4,13 @@ use strict;
 use warnings;
 
 use Dancer;
+use Plack::Handler::Starman;
 use LWP::UserAgent;
-use Data::Dumper;
-use YAML::XS;
+use Time::HiRes qw/time/;
+use YAML::XS qw/LoadFile/;
+use POSIX qw/:sys_wait_h setgid setuid/;
+use Getopt::Long;
+use Cache::FastMmap;
 use HTTP::Request::Common ();
 # Add a delete function to LWP, for continuity!
 no strict 'refs';
@@ -18,44 +22,31 @@ if (! defined *{"LWP::UserAgent::delete"}{CODE}) {
 		};
 }
 
-our $VERSION = '0.1';
+our $VERSION = '0.9.0';
 
-my $NODES    = {};
-my %CONFIG   = ();
-my $SESSIONS = {};
-my $agent    = LWP::UserAgent->new(agent => __PACKAGE__);
+my $agent    = LWP::UserAgent->new(agent => __PACKAGE__."-$VERSION");
 $agent->default_header(Content_Type => "application/json;charset=UTF-8");
 # pretty sure this violates RFC 2616, oh well
 push @{$agent->requests_redirectable}, 'POST';
 
+
+# Defaults
 my %CONFIG = (
-	 log           => 'syslog',
-	'log_level'    => 'info',
-	'log_facility' => 'daemon',
-	 port          =>  8910,
-	 gid           => 'lithium',
-	 uid           => 'lithium',
-	 pidfile       => '/var/run/lithium.pid',
+	log          => 'syslog',
+	log_level    => 'info',
+	log_facility => 'daemon',
+	workers      =>  3,
+	keepalive    =>  150,
+	port         =>  8910,
+	gid          => 'lithium',
+	uid          => 'lithium',
+	pidfile      => '/var/run/lithium.pid',
+	cache_file   => '/tmp/lithium-cache.tmp',
 );
 
 my %OPTIONS = (
-	config  => '/etc/ghost.conf',
+	config  => '/etc/lithium.conf',
 );
-
-GetOptions(\%OPTIONS, qw/
-	help|h|?
-	config|c=s
-	port|P=i
-	log|l=s
-	log_level|L=s
-	log_facility|f=s
-	log_file|F=s
-	uid|U=s
-	gid|G=s
-	pidfile|p=s
-	debug|D
-/) or pod2usage(2);
-pod2usage(1) if $OPTIONS{help};
 
 my $config_file;
 if (-f $OPTIONS{config}) {
@@ -72,28 +63,40 @@ for (keys %$config_file) {
 for (keys %OPTIONS) {
 	$CONFIG{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
 }
-set serializer => 'JSON';
-set port       => $CONFIG{port};
-set logger     => 'console';
-set log        => 'debug';
-set show_errors => 1;
+
+my $CACHE = Cache::FastMmap->new(
+	share_file     => $CONFIG{cache_file},
+	expire_time    =>  0,
+	unlink_on_exit =>  0,
+	empty_on_exit  =>  0,
+	page_size      => '1m', # size of perl objects to store
+	num_pages      =>  16,  # num of objects
+);
+
+my $NODES    = $CACHE->get('NODES');
+my $SESSIONS = $CACHE->get('NODES');
+my $STATS    = $CACHE->get('STATS');
+
+set logger       => 'console';
+set log          => 'debug';
+set show_errors  =>  1;
+
+set serializer   => 'JSON';
+set content_type => 'application/json';
 
 
-get '/sessions' => sub {
+get qr|(/wd/hub)?/sessions| => sub {
 	debug "Sessions hit\n";
 	# ... hmmm landing page? ... docs ?
 	return 'ok';
 };
-get '/wd/hub/sessions' => sub {
-	redirect "/sessions";
-};
 post '/' => sub {
 	redirect '/session', 301;
 };
-post '/session' => sub {
+post qr|(/wd/hub)?/session| => sub {
 	debug "client is requesting a new session (/session)";
 	my $request = from_json(request->body);
-	debug(Dumper($request));
+	$NODES = $CACHE->get('NODES');
 	for (keys %$NODES) {
 		next unless scalar keys %{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances};
 		next unless $request->{desiredCapabilities}{browserName} eq $NODES->{$_}{browser};
@@ -101,8 +104,14 @@ post '/session' => sub {
 		if ($res->is_success) {
 			$res = from_json($res->content);
 			$res->{value}{node} = $NODES->{$_}{url};
-			$NODES->{$_}{sessions}{$res->{sessionId}} = 1;
+			$NODES->{$_}{sessions}{$res->{sessionId}} = time;
+			$SESSIONS = $CACHE->get('SESSIONS');
+			$STATS = $CACHE->get('STATS');
 			$SESSIONS->{$res->{sessionId}} = $_; # Reverse hash session -> node
+			$STATS->{sessions}++;
+			$CACHE->set('SESSIONS', $SESSIONS);
+			$CACHE->set('STATS', $STATS);
+			$CACHE->set('NODES', $NODES);
 			return to_json($res);
 			last;
 		}
@@ -114,21 +123,22 @@ post '/session' => sub {
 del '/session/:session_id' => sub {
 	my $session_id = param('session_id');
 	debug "deleting session: $session_id";
+	$SESSIONS = $CACHE->get('SESSIONS');
 	my $node = delete $SESSIONS->{$session_id};
+	$CACHE->set('SESSIONS', $SESSIONS);
+	$NODES = $CACHE->get('NODES');
 	my $res = $agent->delete("$NODES->{$node}{url}/session/$session_id");
-
-	delete $NODES->{$node}{sessions}{$session_id};
-	debug "Nodes: \n".Dumper($NODES);
-	debug "Sessions: \n".Dumper($SESSIONS);
+	my $end_time = time;
+	my $start_time = delete $NODES->{$node}{sessions}{$session_id};
+	$CACHE->set('NODES', $NODES);
+	$STATS = $CACHE->get('STATS');
+	$STATS->{runtime} += $end_time - $start_time;
+	$CACHE->set('STATS', $STATS);
 	status 204;
 	return 'ok';
 };
 del '/wd/hub/session/:session_id' => sub {
 	forward '/session/'.params->{session_id};
-};
-post '/wd/hub/session' => sub {
-	debug "client is requesting a new session (/wd/hub/session)";
-	redirect "/session", 301;
 };
 
 post '/grid/register' => sub {
@@ -136,7 +146,7 @@ post '/grid/register' => sub {
 	debug "Registering new node ($node->{capabilities}[0]{browserName}"
 		." at $node->{configuration}{url},"
 		." available sessions: $node->{capabilities}[0]{maxInstances})";
-
+	$NODES = $CACHE->get('NODES');
 	$NODES->{"$node->{configuration}{url}_$node->{capabilities}[0]{browserName}"} =
 		{
 			url           => $node->{configuration}{url},
@@ -144,31 +154,65 @@ post '/grid/register' => sub {
 			browser       => $node->{capabilities}[0]{browserName},
 			sessions      => {},
 		};
-
+	$CACHE->set('NODES', $NODES);
+	$STATS = $CACHE->get('STATS');
+	$STATS->{nodes}++;
+	$CACHE->set('STATS', $STATS);
 	return "ok";
 };
 
-get qr|/lithium(/v\d)?/health| => sub {
-
+get qr|(/lithium)?(/v\d)?/health| => sub {
+	header 'Content-Type' => "text/plain";
+	return to_yaml {
+		name    => __PACKAGE__,
+		version => $VERSION,
+		checks  => {
+			test1 => {
+				status  => 'OK',
+				message => 'Test OK'
+			}
+		}
+	};
 };
-get '/lithium/stats' => sub {
-
+get qr|(/lithium)?/stats| => sub {
+	$STATS = $CACHE->get('STATS');
+	return to_json $STATS;
 };
 
-sub start
+sub _check_nodes
+{
+	$NODES = $CACHE->get('NODES');
+	$STATS = $CACHE->get('STATS');
+	for (keys %$NODES) {
+		my $res = $agent->get("$NODES->{$_}{url}/status");
+		next if $res->is_success;
+		delete $NODES->{$_};
+		$STATS->{nodes}--;
+		$CACHE->set('NODES', $NODES);
+		$CACHE->set('STATS', $STATS);
+	}
+}
+
+sub app
+{
+	my $request = Dancer::Request->new(env => shift);
+	Dancer->dance($request);
+}
+
+sub run
 {
 	my $pid = fork;
 	my $pidfile = $CONFIG{pidfile};
 	exit 1 if $pid < 0;
 	if ($pid == 0) {
 		exit if fork;
-
 		my $fh;
 		if (-f $pidfile) {
 			open my $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
 			my $found_pid = <$fh>;
 			close $fh;
 			if (kill "ZERO", $found_pid) {
+				debug "Lithium already running";
 				return 1;
 			} else {
 				unlink $pidfile;
@@ -183,7 +227,15 @@ sub start
 		open STDOUT, ">/dev/null";
 		open STDERR, ">/dev/null";
 		open STDIN,  "</dev/null";
-		dance;
+		$CACHE->empty;
+		$CACHE->set('STATS', { nodes => 0, runtime => 0, sessions => 0 });
+		my $server = Plack::Handler::Starman->new(
+				port              => $CONFIG{port},
+				workers           => $CONFIG{workers},
+				keepalive_timeout => $CONFIG{keepalive},
+				argv              => ['lithium'],
+			);
+		$server->run(\&app);
 		exit 2;
 	}
 
