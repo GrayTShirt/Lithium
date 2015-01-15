@@ -1,0 +1,17 @@
+Figure out how to handle loss of a node
+  - Shared config file?
+  - lithium launches phantom?
+  - recheck an old list?
+Lithium pairs?
+  - share the node list?
+  - overflow?
+
+Selenium on Mac Integration.
+
+Dead session clearing and reactivation.
+
+Health Endpoint
+  - Health endpoint should check usage.
+  - v2 to poll connected nodes.
+
+Testing, Pod, Runbook.
