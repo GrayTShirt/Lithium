@@ -12,10 +12,11 @@ use YAML::XS qw/LoadFile/;
 use POSIX qw/:sys_wait_h setgid setuid/;
 use Getopt::Long;
 use Time::HiRes qw/time/;
+use Devel::Size qw(size);
+use Pod::Simple::HTML;
 
 use LWP::UserAgent;
 use HTTP::Request::Common ();
-use Devel::Size qw(size);
 # Add a delete function to LWP, for continuity!
 no strict 'refs';
 if (! defined *{"LWP::UserAgent::delete"}{CODE}) {
@@ -110,6 +111,47 @@ set serializer   => 'JSON';
 set content_type => 'application/json';
 
 
+get qr|(/lithium)?/help| => sub {
+	header 'Content-Type' => 'text/html';
+	my $p = Pod::Simple::HTML->new;
+	my $html;
+	$p->html_header_before_title(qq|
+		<!doctype html>
+			<html lang="en">
+				<head>
+					<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+					<title>Lithium - Help
+	|);
+	$p->html_css(qq|
+		<link href='http://fonts.googleapis.com/css?family=Molengo' rel='stylesheet' type='text/css'>
+		<style>
+			* {
+				font-family: Molengo;
+			}
+			body {
+				padding: 0;
+				margin: 0;
+				background-color: #A9A9A9;
+			}
+			#background {
+				background-color: #FFFFFE;
+				height: 100%;
+				width: 80%;
+				left: 10%;
+				padding: 25px 35px;
+				margin: 0 auto;
+				overflow-x: hidden;
+				overflow-y: auto;
+				box-shadow: 14px 0px 10px #777, -14px 0px 10px #777;
+			}
+		</style>
+	|);
+	$p->html_header_after_title('</title></head><body><div id="background"><div>');
+	$p->html_footer("</div></div></body></html>");
+	$p->output_string(\$html);
+	$p->parse_file(Cwd::abs_path(__FILE__));
+	return $html;
+};
 get qr|(/wd/hub)?/sessions| => sub {
 	if (request->env->{HTTP_ACCEPT} =~ m/json/i) {
 		return to_json &SESSIONS;
@@ -378,7 +420,7 @@ sub stop
 
 A Selenium grid replacement
 
-=head1 SYNOPSIS
+=head2 SYNOPSIS
 
 If you have ever tried to deploy a selenium server into your production environment you may or
 may not have had significant issue getting it to communication syncronesly with phantomjs.
@@ -389,118 +431,128 @@ Further tight intergation between backend cache and worker threads allows for a 
 server model that allows for fast session acquisition and removal, along with useful
 performance metrics.
 
-=head1 EXPORT
+=head2 EXPORT
 
 A list of functions that can be exported.  You can delete this section
 if you don't export anything, such as for a purely object-oriented module.
 
-=head1 FUNCTIONS
+=head2 FUNCTIONS
 
-=head2 app
+=head3 app
 
-=head2 run
+=head3 run
 
-=head2 stop
+=head3 stop
 
-=head1 CONFIG
+=head2 CONFIG
 
 The config file is in yaml format.
 
 =over
 
-=item log
+=item I<log>
 
 The log type, options are console, file, or syslog.
+
 Default: syslog
 
-=item log_level
+=item I<log_level>
 
 The log severity to report on, options are error, info, debug, or core
+
 Default: info
 
-=item log_facility
+=item I<log_facility>
 
 If the log type is syslog, the log facility to report under, options are found in man syslog
+
 Default: daemon
 
-=item workers
+=item I<workers>
 
 The number of http works to spawn.
+
 Default: 3
 
-=item keepalive
+=item I<keepalive>
 
 The http session keepalive in millieseconds.
+
 Default: 150
 
-=item port
+=item I<port>
 
 The http port to listen for node registry and for session assignment.
+
 Default: 8910
 
-=item uid
+=item I<uid>
 
 The user to run under, the user should be added at install time.
+
 Default: lithium
 
-=item gid
+=item I<gid>
 
 The group to run under, the group should be added at install time.
+
 Default: lithium
 
-=item pidfile
+=item I<pidfile>
 
 The long lived pid file to copy the master process ID to.
+
 Default: /var/run/lithium.pid
 
-=item cache_file
+=item I<cache_file>
 
 The cache file is a memory mapped file, for a common memory location between the various
 lithium processes.
+
 Default: /tmp/lithium-cache.tmp
 
 =back
 
-=head1 ROUTES
+=head2 ROUTES
 
 =over
 
-=item GET    / /help /lithium/help
+=item I<GET> B</ /help /lithium/help>
 
 Return this help document as a HTML help page.
 
-=item POST   / /session /wd/hub/session
+=item I<POST> B</ /session /wd/hub/session>
 
 Start a new webdriver session, will return JSON document including the node redirect.
 
-=item POST   /grid/register
+=item I<POST> B</grid/register>
 
 Register a new node with Lithium, where a node is a phantomjs or standalone selenium session.
 
-=item DELETE /session/<SESSION ID> /wd/hub/session/<SESSION ID>
+=item I<DELETE> B</session/[SESSION ID] /wd/hub/session/[SESSION ID]>
 
-End a webdriver session.
+End a webdriver session. 
 
-=item GET    /stats /lithium/stats
+=item I<GET> B</stats /lithium/stats>
 
 Return the current performance statistics, see STATS for details.
 
-=item GET    /health /v<API VER>/health /lithium/health /lithium/v<API VER>/health
+=item I<GET> B</health /v[API VER]/health /lithium/health /lithium/v[API VER]/health>
 
 Force Lithium to check its own health, namely connectivity to registered NODES,
 available memory in the cache.
 
-=item GET    /sessions /wd/hub/sessions
+=item I<GET> B</sessions /wd/hub/sessions>
 
 Get a YAML or JSON document of the current sessions.
 
-=item GET    /nodes /wd/hub/nodes
+=item I<GET> B</nodes /wd/hub/nodes>
 
 Get a YAML or JSON document of the currently connected nodes.
 
 =back
 
-=head1 STATS
+=head2 STATS
 
 =over
 
@@ -512,11 +564,11 @@ Get a YAML or JSON document of the currently connected nodes.
 
 =back
 
-=head1 AUTHOR
+=head2 AUTHOR
 
 Dan Molik, C<< <dmolik at synacor.com> >>
 
-=head1 COPYRIGHT & LICENSE
+=head2 COPYRIGHT & LICENSE
 
 Copyright 2014 Synacor Inc.
 
