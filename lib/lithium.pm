@@ -117,10 +117,10 @@ get qr|(/lithium)?/help| => sub {
 	my $html;
 	$p->html_header_before_title(qq|
 		<!doctype html>
-			<html lang="en">
-				<head>
-					<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-					<title>Lithium - Help
+		<html lang="en">
+			<head>
+				<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+				<title>Lithium - Help
 	|);
 	$p->html_css(qq|
 		<link href='http://fonts.googleapis.com/css?family=Molengo' rel='stylesheet' type='text/css'>
@@ -143,6 +143,15 @@ get qr|(/lithium)?/help| => sub {
 				overflow-x: hidden;
 				overflow-y: auto;
 				box-shadow: 14px 0px 10px #777, -14px 0px 10px #777;
+			}
+			h1 {
+				border-bottom: 1px solid #A9A9A9;
+			}
+			p {
+				padding-left: 10px;
+			}
+			dl {
+				padding-left: 20px;
 			}
 		</style>
 	|);
@@ -250,18 +259,25 @@ post '/grid/register' => sub {
 
 get qr|(/lithium)?(/v\d)?/health| => sub {
 	&NODES; &STATS; &OLD; &SESSIONS;
-	header 'Content-Type' => "text/plain";
-	return to_yaml {
+	my $health = {
 		name    => __PACKAGE__,
-		version => $VERSION,
-		checks  => {
-			test1 => {
-				status  => 'OK',
-				message => size($NODES)
-			}
-		}
+		versiob => $VERSION,
+		checks  => {},
 	};
+	# test1 => {
+	#	status  => 'OK',
+	#	message => size($NODES)
+	# }
+
+	if (request->env->{HTTP_ACCEPT} =~ m/json/i) {
+		return to_json $health;
+	} else {
+		header 'Content-Type' => "text/plain";
+		return to_yaml $health;
+	}
 };
+
+
 sub _check_nodes
 {
 	debug "checking for disconnected nodes";
@@ -422,8 +438,8 @@ A Selenium grid replacement
 
 =head2 SYNOPSIS
 
-If you have ever tried to deploy a selenium server into your production environment you may or
-may not have had significant issue getting it to communication syncronesly with phantomjs.
+If you have ever tried to deploy a selenium server into your production environment you
+probably had significant issues getting it to communicate syncronesly with phantomjs.
 Lithium is a mostly compatible drop in replacement for aquireing, forwarding WebDriver
 sessions to WebDriver/Selenium2 compatible nodes.
 
@@ -438,11 +454,21 @@ if you don't export anything, such as for a purely object-oriented module.
 
 =head2 FUNCTIONS
 
-=head3 app
+=over
 
-=head3 run
+=item I<app>
 
-=head3 stop
+Return a PSGI compatible Dancer object.
+
+=item I<run>
+
+Start up Lithium, i.e: fork and save pid.
+
+=item I<stop>
+
+Find lithium via pidfile and kill int the master process.
+
+=back
 
 =head2 CONFIG
 
@@ -515,6 +541,9 @@ Default: /tmp/lithium-cache.tmp
 
 =head2 ROUTES
 
+The following is a compact and exhaustive list of the API's available http paths,
+otherwise known as Dancer routes.
+
 =over
 
 =item I<GET> B</ /help /lithium/help>
@@ -556,11 +585,17 @@ Get a YAML or JSON document of the currently connected nodes.
 
 =over
 
-=item sessions - the total number of started sessions since lithium began.
+=item I<sessions>
 
-=item runtime - the cumulative time (seconds), all of the sessions have been running, since start.
+The total number of started sessions since lithium began. [COUNTER]
 
-=item nodes - the current number of connected nodes (phantomjs instances).
+=item I<runtime>
+
+The cumulative time (seconds), all of the sessions have been running, since start. [COUNTER]
+
+=item I<nodes>
+
+The current number of connected nodes (phantomjs instances). [GAUGE]
 
 =back
 
