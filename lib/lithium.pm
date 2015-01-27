@@ -10,7 +10,6 @@ use Cache::FastMmap;
 
 use YAML::XS qw/LoadFile/;
 use POSIX qw/:sys_wait_h setgid setuid/;
-use Getopt::Long;
 use Time::HiRes qw/time/;
 use Devel::Size qw(size);
 use Pod::Simple::HTML;
@@ -19,7 +18,7 @@ use LWP::UserAgent;
 use HTTP::Request::Common ();
 # Add a delete function to LWP, for continuity!
 no strict 'refs';
-if (! defined *{"LWP::UserAgent::delete"}{CODE}) {
+if (!defined *{"LWP::UserAgent::delete"}{CODE}) {
 	*{"LWP::UserAgent::delete"} =
 		sub {
 			my ($self, $uri) = @_;
@@ -35,21 +34,24 @@ $agent->default_header(Content_Type => "application/json;charset=UTF-8");
 push @{$agent->requests_redirectable}, 'POST';
 
 
-my %CONFIG = (
+my $CONFIG = {
+	daemon       =>  1,
 	log          => 'syslog',
 	log_level    => 'debug',
 	log_facility => 'daemon',
 	workers      =>  3,
 	keepalive    =>  150,
 	port         =>  8910,
+	daemonize    =>  1,
 	gid          => 'lithium',
 	uid          => 'lithium',
 	pidfile      => '/var/run/lithium.pid',
 	cache_file   => '/tmp/lithium-cache.tmp',
-);
+	log_file     => '/var/log/lithium.log',
+};
 my @PIDS;
 $SIG{INT} = $SIG{TERM} = $SIG{QUIT} = sub {
-	unlink $CONFIG{cache_file};
+	unlink $CONFIG->{cache_file};
 	for (@PIDS) {
 		kill 'TERM', $_;
 	}
@@ -68,20 +70,20 @@ if (-f $OPTIONS{config}) {
 }
 
 for (keys %$config_file) {
-	$CONFIG{$_} = $config_file->{$_};
-	$CONFIG{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+	$CONFIG->{$_} = $config_file->{$_};
+	$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
 }
 for (keys %OPTIONS) {
-	$CONFIG{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+	$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
 }
 
 my $CACHE = Cache::FastMmap->new(
-	share_file     => $CONFIG{cache_file},
+	share_file     => $CONFIG->{cache_file},
 	expire_time    =>  0,
 	unlink_on_exit =>  0,
 	empty_on_exit  =>  0,
 	page_size      => '512k', # size of perl objects to store
-	num_pages      =>  4,     # num of objects
+	num_pages      =>  5,     # num of objects
 );
 my $NODES    = $CACHE->get('NODES');
 my $SESSIONS = $CACHE->get('NODES');
@@ -98,29 +100,33 @@ no strict 'refs';
 *{"STATS::set"}    = sub { shift; $CACHE->set('STATS', scalar @_ ? @_ : $STATS) };
 *{"OLD"}           = sub { $OLD = $CACHE->get('OLD'); return $OLD };
 *{"OLD::set"}      = sub { shift; $CACHE->set('OLD', scalar @_ ? @_ : $OLD) };
+*{"CONFIG"}        = sub { $CONFIG = $CACHE->get('CONFIG'); return $CONFIG };
+*{"CONFIG::set"}   = sub { shift; $CACHE->set('CONFIG', scalar @_ ? @_ : $CONFIG) };
 use strict 'refs';
 
-if ($CONFIG{log} =~ m/syslog/i) {
-	set syslog      => { facility => $CONFIG{log_facility}, ident => __PACKAGE__, };
+if ($CONFIG->{log} =~ m/syslog/i) {
+	set syslog   => { facility => $CONFIG->{log_facility}, ident => __PACKAGE__, };
+} elsif($CONFIG->{log} =~ m/file/i) {
+	set log_file => $CONFIG->{log_file};
 }
-set logger      => $CONFIG{log};
-set log         => $CONFIG{log_level};
+set logger      => $CONFIG->{log};
+set log         => $CONFIG->{log_level};
 set show_errors =>  1;
 
 set serializer   => 'JSON';
 set content_type => 'application/json';
 
 
-get qr|(/lithium)?/help| => sub {
+get qr/(\/lithium)?\/(help|docs)/ => sub {
 	header 'Content-Type' => 'text/html';
 	my $p = Pod::Simple::HTML->new;
 	my $html;
 	$p->html_header_before_title(qq|
-		<!doctype html>
-		<html lang="en">
-			<head>
-				<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-				<title>Lithium - Help
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+		<title>Lithium - Help
 	|);
 	$p->html_css(qq|
 		<link href='http://fonts.googleapis.com/css?family=Molengo' rel='stylesheet' type='text/css'>
@@ -206,8 +212,8 @@ post qr|(/wd/hub)?/session| => sub {
 			last;
 		}
 	}
-	redirect "/next lithium server", 301
-		if $CONFIG{pair};
+	redirect $CONFIG->{pair}, 301
+		if &CONFIG->{pair};
 	status 404; return;
 };
 post '/' => sub {
@@ -261,13 +267,22 @@ get qr|(/lithium)?(/v\d)?/health| => sub {
 	&NODES; &STATS; &OLD; &SESSIONS;
 	my $health = {
 		name    => __PACKAGE__,
-		versiob => $VERSION,
-		checks  => {},
+		version => $VERSION,
+		checks  => {
+			'Disconnected Nodes' => {
+				status  => 'Ok',
+				message => 'No nodes are disconnected.',
+			}
+		}
 	};
-	# test1 => {
-	#	status  => 'OK',
-	#	message => size($NODES)
-	# }
+	
+	if (scalar keys %{&OLD} > 0) {
+		my @disconnected = keys %$OLD;
+		$health->{checks}{'Disconnected Nodes'} = {
+			status  => "WARN",
+			message => "Following node[s] are disconnected: ".join(", ", @disconnected),
+		}
+	}
 
 	if (request->env->{HTTP_ACCEPT} =~ m/json/i) {
 		return to_json $health;
@@ -291,6 +306,7 @@ sub _check_nodes
 		&OLD->{$_} = $old_node;
 		OLD->set;
 	}
+	debug "checking stale nodes to see if they are back up";
 	for (keys %{&OLD}) {
 		my $res = $agent->get("$OLD->{$_}{url}/status");
 		next unless $res->is_success;
@@ -310,7 +326,7 @@ sub _check_sessions
 	for my $session (keys %{&SESSIONS}) {
 		my $node = $SESSIONS->{$session};
 		my $start_time = $NODES->{$node}{sessions}{$session};
-		if ($CONFIG{idle_session} && ($time - $start_time) > $CONFIG{idle_session}) {
+		if ($CONFIG->{idle_session} && ($time - $start_time) > $CONFIG->{idle_session}) {
 			$agent->delete("$NODES->{$node}{url}/session/$session");
 			delete $NODES->{$node}{sessions}{$session};
 			delete $SESSIONS->{$session};
@@ -340,19 +356,45 @@ sub _spawn_worker
 
 sub app
 {
-	my $request = Dancer::Request->new(env => shift);
-	Dancer->dance($request);
+	$0 = __PACKAGE__." master";
+	debug "clearing cache file '$CONFIG->{cache_file}'";
+	$CACHE->empty;
+	STATS->set({ nodes => 0, runtime => 0, sessions => 0 });
+	NODES->set({});
+	SESSIONS->set({});
+	OLD->set({});
+	CONFIG->set($CONFIG);
+	my $server = Plack::Handler::Starman->new(
+			port              => $CONFIG->{port},
+			workers           => $CONFIG->{workers},
+			keepalive_timeout => $CONFIG->{keepalive},
+			argv              => ['lithium'],
+		);
+	info "starting ".__PACKAGE__;
+	push @PIDS, _spawn_worker(\&_check_sessions);
+	push @PIDS, _spawn_worker(\&_check_nodes);
+	my $pid = fork;
+	exit 1 if $pid < 0;
+	if ($pid == 0) {
+		$server->run(sub {Dancer->dance(Dancer::Request->new(env => shift))});
+	} else {
+		push @PIDS, $pid;
+	}
+	while (1) { sleep 9999; }
 }
 
 sub run
 {
+	if (!$CONFIG->{daemon} || $CONFIG->{daemon} =~ m/off|no|false/i) {
+		&app;
+		return $? == 0;
+	}
 	my $pid = fork;
-	my $pidfile = $CONFIG{pidfile};
+	my $pidfile = $CONFIG->{pidfile};
 	exit 1 if $pid < 0;
 	if ($pid == 0) {
 		exit if fork;
 		my $fh;
-		$0 = __PACKAGE__." master";
 		if (-f $pidfile) {
 			open my $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
 			my $found_pid = <$fh>;
@@ -368,34 +410,12 @@ sub run
 			print $fh "$$";
 			close $fh;
 		};
-		$) = getgrnam($CONFIG{gid}) or die "Unable to set group to $CONFIG{gid}: $!";
-		$> = getpwnam($CONFIG{uid}) or die "Unable to set user to $CONFIG{uid}: $!";
+		$) = getgrnam($CONFIG->{gid}) or die "Unable to set group to $CONFIG->{gid}: $!";
+		$> = getpwnam($CONFIG->{uid}) or die "Unable to set user to $CONFIG->{uid}: $!";
 		open STDOUT, ">/dev/null";
 		open STDERR, ">/dev/null";
 		open STDIN,  "</dev/null";
-		debug "clearing cache file '$CONFIG{cache_file}'";
-		$CACHE->empty;
-		STATS->set({ nodes => 0, runtime => 0, sessions => 0 });
-		NODES->set({});
-		SESSIONS->set({});
-		OLD->set({});
-		my $server = Plack::Handler::Starman->new(
-				port              => $CONFIG{port},
-				workers           => $CONFIG{workers},
-				keepalive_timeout => $CONFIG{keepalive},
-				argv              => ['lithium'],
-			);
-		info "starting ".__PACKAGE__;
-		push @PIDS, _spawn_worker(\&_check_sessions);
-		push @PIDS, _spawn_worker(\&_check_nodes);
-		$pid = fork;
-		exit 1 if $pid < 0;
-		if ($pid == 0) {
-			$server->run(\&app);
-		} else {
-			push @PIDS, $pid;
-		}
-		while (1) { sleep 9999; }
+		&app;
 		exit 2;
 	}
 
@@ -409,7 +429,7 @@ sub stop
 	for (@PIDS) {
 		kill 'TERM', $_;
 	}
-	my $pidfile = $CONFIG{pidfile};
+	my $pidfile = $CONFIG->{pidfile};
 	return unless -f $pidfile;
 	my $fh;
 	open $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
@@ -447,34 +467,17 @@ Further tight intergation between backend cache and worker threads allows for a 
 server model that allows for fast session acquisition and removal, along with useful
 performance metrics.
 
-=head2 EXPORT
-
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
-
-=head2 FUNCTIONS
-
-=over
-
-=item I<app>
-
-Return a PSGI compatible Dancer object.
-
-=item I<run>
-
-Start up Lithium, i.e: fork and save pid.
-
-=item I<stop>
-
-Find lithium via pidfile and kill int the master process.
-
-=back
-
 =head2 CONFIG
 
 The config file is in yaml format.
 
 =over
+
+=item I<daemon>
+
+Daemonize lithium, IE: fork to background, set to 0 to disable.
+
+Default: Yes
 
 =item I<log>
 
@@ -537,6 +540,37 @@ lithium processes.
 
 Default: /tmp/lithium-cache.tmp
 
+=item I<pair>
+
+The lithium server pair URL to redirect in the event that all nodes are busy.
+
+Default: None.
+
+=item I<idle_session>
+
+The time in seconds to wait for an active session to declare it dead and clean up after it.
+
+Default: <Disabled>
+
+=back
+
+=head2 STATS
+
+=over
+
+=item I<sessions>
+
+The total number of started sessions since lithium started. [COUNTER]
+
+=item I<runtime>
+
+The cumulative time (seconds), of all of the sessions that
+have been running, since lithium has been started. [COUNTER]
+
+=item I<nodes>
+
+The current number of connected nodes (phantomjs instances). [GAUGE]
+
 =back
 
 =head2 ROUTES
@@ -560,11 +594,11 @@ Register a new node with Lithium, where a node is a phantomjs or standalone sele
 
 =item I<DELETE> B</session/[SESSION ID] /wd/hub/session/[SESSION ID]>
 
-End a webdriver session. 
+End a webdriver session.
 
 =item I<GET> B</stats /lithium/stats>
 
-Return the current performance statistics, see STATS for details.
+Return the current performance statistics, see L</STATS> for details.
 
 =item I<GET> B</health /v[API VER]/health /lithium/health /lithium/v[API VER]/health>
 
@@ -581,21 +615,105 @@ Get a YAML or JSON document of the currently connected nodes.
 
 =back
 
-=head2 STATS
+=head2 FUNCTIONS
 
 =over
 
-=item I<sessions>
+=item I<app>
 
-The total number of started sessions since lithium began. [COUNTER]
+Return a PSGI compatible Dancer object.
 
-=item I<runtime>
+=item I<run>
 
-The cumulative time (seconds), all of the sessions have been running, since start. [COUNTER]
+Start up Lithium, i.e: fork and save pid.
 
-=item I<nodes>
+=item I<stop>
 
-The current number of connected nodes (phantomjs instances). [GAUGE]
+Find lithium via the pidfile and kill--int the master process.
+
+=item I<STATS>
+
+Get the STATS oject from the cache.
+
+See the L</STATS> section for more details.
+
+=item I<< STATS->set >>
+
+Save the STATS oject to the cache.
+
+=item I<NODES>
+
+Get the NODES oject from the cache.
+
+=item I<< NODES->set >>
+
+Save the NODES oject to the cache.
+
+=item I<SESSIONS>
+
+Get the SESSIONS oject from the cache.
+
+The SESSIONS object consists of a key value store
+where the key is the SESSION ID and where the value
+is the originating node.
+
+=item I<< SESSIONS->set >>
+
+Save the SESSIONS oject to the cache.
+
+=item I<OLD>
+
+Get the OLD oject from the cache.
+
+=item I<< OLD->set >>
+
+Save the OLD oject to the cache.
+
+=item I<CONFIG>
+
+Get the CONFIG oject from the cache, see the L</CONFIG> section for details.
+
+=item I<< CONFIG->set >>
+
+Save the CONFIG oject to the cache.
+
+=back
+
+=head2 Required Modules
+
+=over
+
+=item L<Dancer|https://metacpan.org/pod/Dancer>
+
+=item L<Dancer::Logger::Syslog|https://metacpan.org/pod/Dancer::Logger::Syslog>
+
+=item L<Starman|https://metacpan.org/pod/Starman>
+
+=item L<Cache::FastMmap|https://metacpan.org/pod/Cache::FastMmap>
+
+=item L<YAML::XS|https://metacpan.org/pod/distribution/YAML-LibYAML/lib/YAML/XS.pod>
+
+=item L<Time::HiRes|https://metacpan.org/pod/Time::HiRes>
+
+=item L<Devel::Size|https://metacpan.org/pod/Devel::Size>
+
+=item L<Pod::Simple::HTML|https://metacpan.org/pod/Pod::Simple::HTML>
+
+=item L<LWP::UserAgent|https://metacpan.org/pod/LWP::UserAgent>
+
+=item L<HTTP::Request::Common|https://metacpan.org/pod/HTTP::Request::Common>
+
+=back
+
+=head2 REFERENCES
+
+=over
+
+=item L<WebDriver Wire Protocol|https://code.google.com/p/selenium/wiki/JsonWireProtocol>
+
+=item L<Phantomjs|http://phantomjs.org/>
+
+=item L<Ghostdriver|https://github.com/detro/ghostdriver>
 
 =back
 

@@ -1,9 +1,13 @@
-#!perl -T
+#!/usr/bin/perl -T
 
-use Test::More tests => 1;
+use strict;
+use warnings;
+use Test::More;
 
 BEGIN {
-    use_ok( 'lithium' );
+	use_ok('lithium');
 }
 
-diag( "Testing lithium $lithium::VERSION, Perl $], $^X" );
+diag("Testing lithium $lithium::VERSION, Perl $], $^X");
+
+done_testing;

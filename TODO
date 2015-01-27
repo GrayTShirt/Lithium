@@ -1,18 +1,8 @@
 Lithium pairs
 
-Selenium on Mac Integration
-  - simple testing
-
 Testing
-
-Pod
-  - pod2html get on /, /help, and /usage
 
 Runbook
 
-Health Endpoint
-  - have to support json
-  - Health endpoint should check usage.
-  - v2 to poll connected nodes.
-
-phantomjs/ghostdriver post /grid/register poll/status regular interval
+Selenium on Mac Integration
+  - simple testing
