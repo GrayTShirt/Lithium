@@ -7,12 +7,8 @@ use Dancer;
 use Dancer::Logger::Syslog;
 use Plack::Handler::Starman;
 
-our ($CACHE, $NODES, $SESSIONS, $STATS, $OLD) =
-	({}, {}, {}, { nodes => 0, runtime => 0, sessions => 0 }, {});
+our ($CACHE, $NODES, $SESSIONS, $STATS, $OLD);
 require Lithium::Cache;
-
-# use Data::Dumper;
-# print Dumper(STATS({ nodes => 0, runtime => 0, sessions => 0 }));
 
 use YAML::XS qw/LoadFile/;
 use POSIX qw/:sys_wait_h setgid setuid/;

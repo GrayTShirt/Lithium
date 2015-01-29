@@ -1,21 +1,3 @@
-package Lithium;
-
-use Cache::FastMmap;
-
-our $CACHE = Cache::FastMmap->new(
-	share_file     => '/tmp/lithium-cache.tmp', # $CONFIG->{cache_file},
-	expire_time    =>  0,
-	unlink_on_exit =>  0,
-	empty_on_exit  =>  0,
-	page_size      => '512k', # size of perl objects to store
-	num_pages      =>  5,     # num of objects
-);
-our $NODES    = $CACHE->get('NODES');
-our $SESSIONS = $CACHE->get('SESSIONS');
-our $STATS    = $CACHE->get('STATS');
-our $OLD      = $CACHE->get('OLD');
-our $CONFIG;
-
 package Lithium::Cache;
 
 use strict;
@@ -23,56 +5,86 @@ use warnings;
 
 use Cache::FastMmap;
 
+BEGIN {
+	no strict 'refs';
+	${*{"Lithium::CACHE"}} = Cache::FastMmap->new(
+		share_file     => '/tmp/lithium-cache.tmp', # $CONFIG->{cache_file},
+		expire_time    =>  0,
+		unlink_on_exit =>  0,
+		empty_on_exit  =>  0,
+		page_size      => '512k', # size of perl objects to store
+		num_pages      =>  5,     # num of objects
+	);
+	for my $cache (qw/NODES OLD SESSIONS STATS/) {
+		${*{"Lithium::$cache"}} = ${*{"Lithium::CACHE"}}->get($cache);
+	}
+	use strict 'refs';
+}
+
 no strict 'refs';
-*{"Lithium::NODES"} = sub {
-	my ($new) = @_;
-	if ($new) {
-		$NODES = $new;
-		$CACHE->set('NODES', $new);
-	} else {
-		$NODES = $CACHE->get('NODES');
-	}
-	return $NODES;
-};
-*{"Lithium::STATS"} = sub {
-	my ($new) = @_;
-	if ($new) {
-		$STATS = $new;
-		$CACHE->set('STATS', $new);
-	} else {
-		$STATS = $CACHE->get('STATS');
-	}
-	return $STATS;
-};
-*{"Lithium::SESSIONS"} = sub {
-	my ($new) = @_;
-	if ($new) {
-		$SESSIONS = $new;
-		$CACHE->set('SESSIONS', $new);
-	} else {
-		$SESSIONS = $CACHE->get('SESSIONS');
-	}
-	return $SESSIONS;
-};
-*{"Lithium::OLD"} = sub {
-	my ($new) = @_;
-	if ($new) {
-		$OLD = $new;
-		$CACHE->set('OLD', $new);
-	} else {
-		$OLD = $CACHE->get('OLD');
-	}
-	return $OLD;
-};
-*{"Lithium::CONFIG"} = sub {
-	my ($new) = @_;
-	if ($new) {
-		$CONFIG = $new;
-		$CACHE->set('CONFIG', $new);
-	} else {
-		$CONFIG = $CACHE->get('CONFIG');
-	}
-	return $CONFIG;
-};
+for my $sub (qw/CONFIG NODES OLD SESSIONS STATS/){
+	*{"Lithium::$sub"} = sub {
+		my ($new) = @_;
+		if ($new) {
+			${*{"Lithium::$sub"}} = $new;
+			${*{"Lithium::CACHE"}}->set($sub, $new);
+		} else {
+			${*{"Lithium::$sub"}} = ${*{"Lithium::CACHE"}}->get($sub);
+		}
+		return ${*{"Lithium::$sub"}};
+	};
+}
 use strict 'refs';
+
+=head1 Lithium::Cache
+
+A shared memory mapped space.
+
+=head2 SYNOPSIS
+
+Lithium::Cache is cache object store, acessing and setting state information,
+to a memory mapped file. Dual purpose functions are used to set and retrieve
+data objects stored in memory. A filename, provided by the configuration must
+be given to synchronize the memory locations.
+
+=head2 FUNCTIONS
+
+All functions are similar in that they set the cache for a particular data
+object of the same name, or if no parameters are given, they fetch the data
+same data object from the cache.
+
+=over
+
+=item CONFIG
+
+=item NODES
+
+=item OLD
+
+=item SESSIONS
+
+=item STATS
+
+=back
+
+=head2 REQUIRED MODULES
+
+=over
+
+=item L<Cache::FastMmap|https://metacpan.org/pod/Cache::FastMmap>
+
+=back
+
+=head2 AUTHOR
+
+Dan Molik C<< <dmolik at synacor.com> >>
+
+=head2 COPYRIGHT & LICENSE
+
+Copyright 2014 Synacor Inc.
+
+All rights reserved.
+
+=cut
+
 1;
