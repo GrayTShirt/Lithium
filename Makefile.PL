@@ -1,12 +1,13 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-	NAME                => 'lithium',
+	NAME                => 'Lithium',
 	AUTHOR              => q{Dan Molik <dmolik@synacor.com>},
-	VERSION_FROM        => 'lib/lithium.pm',
-	ABSTRACT_FROM       => 'lib/lithium.pm',
+	VERSION_FROM        => 'lib/Lithium.pm',
+	ABSTRACT_FROM       => 'lib/Lithium.pm',
 	($ExtUtils::MakeMaker::VERSION >= 6.3002
 		? ('LICENSE'=> 'perl')
 		: ()),
@@ -18,5 +19,5 @@ WriteMakefile(
 		'Test::More' => 0,
 	},
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-	clean               => { FILES => 'lithium-*' },
+	clean               => { FILES => 'Lithium-*' },
 );
