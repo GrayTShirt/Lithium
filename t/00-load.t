@@ -5,9 +5,9 @@ use warnings;
 use Test::More;
 
 BEGIN {
-	use_ok('lithium');
+	use_ok('Lithium');
 }
 
-diag("Testing lithium $lithium::VERSION, Perl $], $^X");
+diag("Testing Lithium $Lithium::VERSION, Perl $], $^X");
 
 done_testing;

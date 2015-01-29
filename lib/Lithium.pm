@@ -1,4 +1,4 @@
-package lithium;
+package Lithium;
 
 use strict;
 use warnings;
@@ -6,7 +6,13 @@ use warnings;
 use Dancer;
 use Dancer::Logger::Syslog;
 use Plack::Handler::Starman;
-use Cache::FastMmap;
+
+our ($CACHE, $NODES, $SESSIONS, $STATS, $OLD) =
+	({}, {}, {}, { nodes => 0, runtime => 0, sessions => 0 }, {});
+require Lithium::Cache;
+
+# use Data::Dumper;
+# print Dumper(STATS({ nodes => 0, runtime => 0, sessions => 0 }));
 
 use YAML::XS qw/LoadFile/;
 use POSIX qw/:sys_wait_h setgid setuid/;
@@ -34,7 +40,7 @@ $agent->default_header(Content_Type => "application/json;charset=UTF-8");
 push @{$agent->requests_redirectable}, 'POST';
 
 
-my $CONFIG = {
+our $CONFIG = {
 	daemon       =>  1,
 	log          => 'syslog',
 	log_level    => 'debug',
@@ -76,33 +82,6 @@ for (keys %$config_file) {
 for (keys %OPTIONS) {
 	$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
 }
-
-my $CACHE = Cache::FastMmap->new(
-	share_file     => $CONFIG->{cache_file},
-	expire_time    =>  0,
-	unlink_on_exit =>  0,
-	empty_on_exit  =>  0,
-	page_size      => '512k', # size of perl objects to store
-	num_pages      =>  5,     # num of objects
-);
-my $NODES    = $CACHE->get('NODES');
-my $SESSIONS = $CACHE->get('NODES');
-my $STATS    = $CACHE->get('STATS');
-my $OLD      = $CACHE->get('OLD');
-
-no strict 'refs';
-# Build in some shim functions
-*{"NODES"}         = sub { $NODES = $CACHE->get('NODES'); return $NODES };
-*{"NODES::set"}    = sub { shift; $CACHE->set('NODES', scalar @_ ? @_ : $NODES) };
-*{"SESSIONS"}      = sub { $SESSIONS = $CACHE->get('SESSIONS'); return $SESSIONS };
-*{"SESSIONS::set"} = sub { shift; $CACHE->set('SESSIONS', scalar @_ ? @_ : $SESSIONS) };
-*{"STATS"}         = sub { $STATS = $CACHE->get('STATS'); return $STATS };
-*{"STATS::set"}    = sub { shift; $CACHE->set('STATS', scalar @_ ? @_ : $STATS) };
-*{"OLD"}           = sub { $OLD = $CACHE->get('OLD'); return $OLD };
-*{"OLD::set"}      = sub { shift; $CACHE->set('OLD', scalar @_ ? @_ : $OLD) };
-*{"CONFIG"}        = sub { $CONFIG = $CACHE->get('CONFIG'); return $CONFIG };
-*{"CONFIG::set"}   = sub { shift; $CACHE->set('CONFIG', scalar @_ ? @_ : $CONFIG) };
-use strict 'refs';
 
 if ($CONFIG->{log} =~ m/syslog/i) {
 	set syslog   => { facility => $CONFIG->{log_facility}, ident => __PACKAGE__, };
@@ -206,14 +185,14 @@ post qr|(/wd/hub)?/session| => sub {
 			$NODES->{$_}{sessions}{$res->{sessionId}} = time;
 			&SESSIONS->{$res->{sessionId}} = $_; # Reverse hash session -> node
 			&STATS->{sessions}++;
-			NODES->set; STATS->set; SESSIONS->set;
+			NODES($NODES); STATS($STATS); SESSIONS($SESSIONS);
 
 			return to_json($res);
 			last;
 		}
 	}
-	redirect $CONFIG->{pair}, 301
-		if &CONFIG->{pair};
+	#redirect $CONFIG->{pair}, 301
+	#	if &CONFIG->{pair};
 	status 404; return;
 };
 post '/' => sub {
@@ -231,10 +210,10 @@ del '/session/:session_id' => sub {
 	my $res = $agent->delete("$NODES->{$node}{url}/session/$session_id");
 	my $end_time = time;
 	my $start_time = delete $NODES->{$node}{sessions}{$session_id};
-	NODES->set;
+	NODES($NODES);
 
 	&STATS->{runtime} += $end_time - $start_time;
-	STATS->set;
+	STATS($STATS);
 
 	status 204;
 	return 'ok';
@@ -256,9 +235,9 @@ post '/grid/register' => sub {
 			browser       => $node->{capabilities}[0]{browserName},
 			sessions      => {},
 		};
-	NODES->set;
+	NODES($NODES);
 
-	&STATS->{nodes}++; STATS->set;
+	&STATS->{nodes}++; STATS($STATS);
 
 	return "ok";
 };
@@ -302,19 +281,19 @@ sub _check_nodes
 		next if $res->is_success;
 		my $old_node = delete $NODES->{$_};
 		$STATS->{nodes}--;
-		NODES->set; STATS->set;
+		NODES($NODES); STATS($STATS);
 		&OLD->{$_} = $old_node;
-		OLD->set;
+		OLD($OLD);
 	}
 	debug "checking stale nodes to see if they are back up";
 	for (keys %{&OLD}) {
 		my $res = $agent->get("$OLD->{$_}{url}/status");
 		next unless $res->is_success;
 		my $new_old_node = delete $OLD->{$_};
-		OLD->set;
+		OLD($OLD);
 		&STATS->{nodes}++; STATS->set;
 		&NODES->{$_} = $new_old_node;
-		NODES->set;
+		NODES($NODES);
 	}
 }
 
@@ -330,7 +309,7 @@ sub _check_sessions
 			$agent->delete("$NODES->{$node}{url}/session/$session");
 			delete $NODES->{$node}{sessions}{$session};
 			delete $SESSIONS->{$session};
-			SESSIONS->set; NODES->set;
+			SESSIONS($SESSIONS); NODES($NODES);
 		}
 	}
 }
@@ -359,16 +338,16 @@ sub app
 	$0 = __PACKAGE__." master";
 	debug "clearing cache file '$CONFIG->{cache_file}'";
 	$CACHE->empty;
-	STATS->set({ nodes => 0, runtime => 0, sessions => 0 });
-	NODES->set({});
-	SESSIONS->set({});
-	OLD->set({});
-	CONFIG->set($CONFIG);
+	debug "success on clearing cache";
+	NODES({}); SESSIONS({}); OLD({});
+	STATS({ nodes => 0, runtime => 0, sessions => 0 });
+	debug "initialized the backend";
+	# CONFIG->set($CONFIG);
 	my $server = Plack::Handler::Starman->new(
 			port              => $CONFIG->{port},
 			workers           => $CONFIG->{workers},
 			keepalive_timeout => $CONFIG->{keepalive},
-			argv              => ['lithium'],
+			argv              => [__PACKAGE__,],
 		);
 	info "starting ".__PACKAGE__;
 	push @PIDS, _spawn_worker(\&_check_sessions);
@@ -459,8 +438,8 @@ A Selenium grid replacement
 =head2 SYNOPSIS
 
 If you have ever tried to deploy a selenium server into your production environment you
-probably had significant issues getting it to communicate syncronesly with phantomjs.
-Lithium is a mostly compatible drop in replacement for aquireing, forwarding WebDriver
+probably had significant issues getting it to communicate synchronously with phantomjs.
+Lithium is a mostly compatible drop in replacement for acquiring, forwarding WebDriver
 sessions to WebDriver/Selenium2 compatible nodes.
 
 Further tight intergation between backend cache and worker threads allows for a prefork http
@@ -473,80 +452,80 @@ The config file is in yaml format.
 
 =over
 
-=item I<daemon>
+=item B<daemon>
 
-Daemonize lithium, IE: fork to background, set to 0 to disable.
+Daemonize lithium, IE: fork to background, set to 0|no|off|false to not daemonize.
 
 Default: Yes
 
-=item I<log>
+=item B<log>
 
 The log type, options are console, file, or syslog.
 
 Default: syslog
 
-=item I<log_level>
+=item B<log_level>
 
 The log severity to report on, options are error, info, debug, or core
 
 Default: info
 
-=item I<log_facility>
+=item B<log_facility>
 
 If the log type is syslog, the log facility to report under, options are found in man syslog
 
 Default: daemon
 
-=item I<workers>
+=item B<workers>
 
 The number of http works to spawn.
 
 Default: 3
 
-=item I<keepalive>
+=item B<keepalive>
 
 The http session keepalive in millieseconds.
 
 Default: 150
 
-=item I<port>
+=item B<port>
 
 The http port to listen for node registry and for session assignment.
 
 Default: 8910
 
-=item I<uid>
+=item B<uid>
 
 The user to run under, the user should be added at install time.
 
 Default: lithium
 
-=item I<gid>
+=item B<gid>
 
 The group to run under, the group should be added at install time.
 
 Default: lithium
 
-=item I<pidfile>
+=item B<pidfile>
 
 The long lived pid file to copy the master process ID to.
 
 Default: /var/run/lithium.pid
 
-=item I<cache_file>
+=item B<cache_file>
 
 The cache file is a memory mapped file, for a common memory location between the various
 lithium processes.
 
 Default: /tmp/lithium-cache.tmp
 
-=item I<pair>
+=item B<pair>
 
 The lithium server pair URL to redirect in the event that all nodes are busy.
 
 Default: None.
 
-=item I<idle_session>
+=item B<idle_session>
 
 The time in seconds to wait for an active session to declare it dead and clean up after it.
 
@@ -558,16 +537,16 @@ Default: <Disabled>
 
 =over
 
-=item I<sessions>
+=item I<< B<sessions> >>
 
 The total number of started sessions since lithium started. [COUNTER]
 
-=item I<runtime>
+=item I<< B<runtime> >>
 
 The cumulative time (seconds), of all of the sessions that
 have been running, since lithium has been started. [COUNTER]
 
-=item I<nodes>
+=item I<< B<nodes> >>
 
 The current number of connected nodes (phantomjs instances). [GAUGE]
 
