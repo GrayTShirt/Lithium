@@ -1,10 +1,13 @@
-MANIFEST
-Makefile.PL
-README
+bin/lithium
 lib/Lithium.pm
 lib/Lithium/Cache.pm
 lib/Lithium/Daemon.pm
+Makefile.PL
+MANIFEST
+README
 t/00-load.t
 t/01-routes.t
+t/boilerplate.t
+t/common.t
 t/pod-coverage.t
 t/pod.t
