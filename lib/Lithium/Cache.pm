@@ -6,7 +6,7 @@ use warnings;
 use Cache::FastMmap;
 
 BEGIN {
-	no strict 'refs';
+	no strict 'refs'; no warnings 'once';
 	${*{"Lithium::CACHE"}} = Cache::FastMmap->new(
 		share_file     => '/tmp/lithium-cache.tmp', # $CONFIG->{cache_file},
 		expire_time    =>  0,
@@ -18,7 +18,7 @@ BEGIN {
 	for my $cache (qw/NODES OLD SESSIONS STATS/) {
 		${*{"Lithium::$cache"}} = ${*{"Lithium::CACHE"}}->get($cache);
 	}
-	use strict 'refs';
+	use strict 'refs'; use warnings 'once';
 }
 
 no strict 'refs';

@@ -6,68 +6,11 @@ use warnings;
 use POSIX qw/:sys_wait_h setgid setuid/;
 use Lithium;
 
-
-sub spawn_worker
+sub start
 {
-	my (@options) = @_;
+	Lithium::info "starting ".__PACKAGE__;
 	my $pid = fork;
-	exit 1 if $pid < 0;
-	if ($pid == 0) {
-		$0 = __PACKAGE__." worker";
-		if ($options{dont_loop}) {
-			$options{sub}->();
-		} else {
-			while (1) {
-				sleep($options{sleep} || 30);
-				$options{sub}->();
-			}
-		}
-	}
-	return $pid;
-}
-
-sub app
-{
-	$0 = __PACKAGE__." master";
-	debug "clearing cache file '$CONFIG->{cache_file}'";
-	$CACHE->empty;
-	debug "success on clearing cache";
-	NODES({}); SESSIONS({}); OLD({});
-	STATS({ nodes => 0, runtime => 0, sessions => 0 });
-	debug "initialized the backend";
-	# CONFIG->set($CONFIG);
-	my $server = Plack::Handler::Starman->new(
-			port              => $CONFIG->{port},
-			workers           => $CONFIG->{workers},
-			keepalive_timeout => $CONFIG->{keepalive},
-			argv              => [__PACKAGE__,],
-		);
-	info "starting ".__PACKAGE__;
-	push @PIDS, spawn_worker(
-		sub   => Lithium::check_sessions,
-		sleep => $CONFIG{session_timeout}
-	);
-	push @PIDS, spawn_worker(
-		sub   => Lithium::check_nodes
-	);
-	my $pid = fork;
-	exit 1 if $pid < 0;
-	if ($pid == 0) {
-		$server->run(sub {Lithium->dance(Dancer::Request->new(env => shift))});
-	} else {
-		push @PIDS, $pid;
-	}
-	while (1) { sleep 9999; }
-}
-
-sub run
-{
-	if (!$CONFIG->{daemon} || $CONFIG->{daemon} =~ m/off|no|false/i) {
-		&app;
-		return $? == 0;
-	}
-	my $pid = fork;
-	my $pidfile = $CONFIG->{pidfile};
+	my $pidfile = ${*{"Lithium::CONFIG"}}->{pidfile};
 	exit 1 if $pid < 0;
 	if ($pid == 0) {
 		exit if fork;
@@ -77,7 +20,7 @@ sub run
 			my $found_pid = <$fh>;
 			close $fh;
 			if (kill "ZERO", $found_pid) {
-				warning __PACKAGE__." already running";
+				Lithium::warning __PACKAGE__." already running";
 				return 1;
 			} else {
 				unlink $pidfile;
@@ -87,8 +30,10 @@ sub run
 			print $fh "$$";
 			close $fh;
 		};
-		$) = getgrnam($CONFIG->{gid}) or die "Unable to set group to $CONFIG->{gid}: $!";
-		$> = getpwnam($CONFIG->{uid}) or die "Unable to set user to $CONFIG->{uid}: $!";
+		$) = getgrnam(${*{"Lithium::CONFIG"}}->{gid})
+			or die "Unable to set group to ".${*{"Lithium::CONFIG"}}->{gid}.": $!";
+		$> = getpwnam(${*{"Lithium::CONFIG"}}->{uid})
+			or die "Unable to set user to ".${*{"Lithium::CONFIG"}}->{uid}.": $!";
 		open STDOUT, ">/dev/null";
 		open STDERR, ">/dev/null";
 		open STDIN,  "</dev/null";
@@ -102,11 +47,11 @@ sub run
 
 sub stop
 {
-	info "stopping ".__PACKAGE__;
-	for (@PIDS) {
+	Lithium::info "stopping ".__PACKAGE__;
+	for (@{*{"Lithium::PIDS"}}) {
 		kill 'TERM', $_;
 	}
-	my $pidfile = $CONFIG->{pidfile};
+	my $pidfile = ${*{"Lithium::CONFIG"}}->{pidfile};
 	return unless -f $pidfile;
 	my $fh;
 	open $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
@@ -130,6 +75,36 @@ sub stop
 }
 
 =head1 Lithium::Daemon
+
+Now witness this fully armed and operational Selenium Grip replacement.
+
+=head2 SYNOPSIS
+
+This class instantiates Lithium and daemonizes it.
+
+=head2 FUNCTIONS
+
+=over
+
+=item I<start>
+
+Start the Lithium application in daemon mode.
+
+=item I<stop>
+
+Stop the Lithium application.
+
+=back
+
+=head2 AUTHOR
+
+Dan Molik C<< <dmolik at synacor.com> >>
+
+=head2 COPYRIGHT & LICENSE
+
+Copyright 2014 Synacor Inc.
+
+All rights reserved.
 
 =cut
 

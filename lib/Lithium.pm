@@ -309,6 +309,55 @@ sub check_sessions
 	}
 }
 
+sub spawn_worker
+{
+	my (%options) = @_;
+	my $pid = fork;
+	exit 1 if $pid < 0;
+	if ($pid == 0) {
+		$0 = $options{name} || __PACKAGE__." worker";
+		if ($options{dont_loop}) {
+			$options{sub}->();
+		} else {
+			while (1) {
+				sleep($options{sleep} || 30);
+				$options{sub}->();
+			}
+		}
+	}
+	push @PIDS, $pid;
+	return $pid;
+}
+
+sub app
+{
+	$0 = __PACKAGE__." master";
+	debug "clearing cache file '$CONFIG->{cache_file}'";
+	$CACHE->empty;
+	debug "success on clearing cache";
+	NODES({}); SESSIONS({}); OLD({});
+	STATS({ nodes => 0, runtime => 0, sessions => 0 });
+	debug "initialized the backend";
+	# CONFIG->set($CONFIG);
+	my $server = Plack::Handler::Starman->new(
+			port              => $CONFIG->{port},
+			workers           => $CONFIG->{workers},
+			keepalive_timeout => $CONFIG->{keepalive},
+			argv              => [__PACKAGE__,],
+		);
+	info "starting ".__PACKAGE__;
+	spawn_worker(sub => &check_sessions);
+	spawn_worker(sub => &check_nodes);
+	my $pid = fork;
+	exit 1 if $pid < 0;
+	if ($pid == 0) {
+		$server->run(sub {Lithium->dance(Dancer::Request->new(env => shift))});
+	} else {
+		push @PIDS, $pid;
+	}
+	while (1) { sleep 9999; }
+}
+
 
 =head1 LITHIUM
 
@@ -477,63 +526,39 @@ Get a YAML or JSON document of the currently connected nodes.
 
 =over
 
+=item I<check_nodes>
+
+Contact all of the nodes in the Cache and check to see if they are up and running.
+If they are not move them into a storage bin and check up on them periodically.
+If old nodes have become live again this function will put them back into rotation.
+
+check_nodes has no parameters or return values.
+
+=item I<check_sessions>
+
+Go thorugh a list of all of the current session and see if any of them have aged out.
+If so contact the running node and delete them.
+
+check_sessions has no parameters or return values.
+
+=item I<spawn_worker>
+
+Run a function in a forked process. The pid of the child will be added to
+overall master process list.
+
+spawn_worker has 3 hash type parameters:
+sub: The function to run, non-optional required parameter.
+dont_loop: disable continuous runs, ie run once. disabled by default.
+name: Optional name given to the process, defaults to; __PACKAGE__ worker.
+sleep: the schedualed runtime in seconds, defaults to 30 seconds.
+
+Return values:
+On failure return 0.
+On success return the process pid.
+
 =item I<app>
 
 Return a PSGI compatible Dancer object.
-
-=item I<run>
-
-Start up Lithium, i.e: fork and save pid.
-
-=item I<stop>
-
-Find lithium via the pidfile and kill--int the master process.
-
-=item I<STATS>
-
-Get the STATS oject from the cache.
-
-See the L</STATS> section for more details.
-
-=item I<< STATS->set >>
-
-Save the STATS oject to the cache.
-
-=item I<NODES>
-
-Get the NODES oject from the cache.
-
-=item I<< NODES->set >>
-
-Save the NODES oject to the cache.
-
-=item I<SESSIONS>
-
-Get the SESSIONS oject from the cache.
-
-The SESSIONS object consists of a key value store
-where the key is the SESSION ID and where the value
-is the originating node.
-
-=item I<< SESSIONS->set >>
-
-Save the SESSIONS oject to the cache.
-
-=item I<OLD>
-
-Get the OLD oject from the cache.
-
-=item I<< OLD->set >>
-
-Save the OLD oject to the cache.
-
-=item I<CONFIG>
-
-Get the CONFIG oject from the cache, see the L</CONFIG> section for details.
-
-=item I<< CONFIG->set >>
-
-Save the CONFIG oject to the cache.
 
 =back
 
