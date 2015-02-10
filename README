@@ -14,10 +14,5 @@ SUPPORT AND DOCUMENTATION
 After installing, you can find documentation for this module with the
 perldoc command.
 
-    perldoc lithium
+    perldoc Lithium
 
-COPYRIGHT AND LICENCE
-
-Copyright (C) 2014 Synacor Inc.
-
-All rights reserved.
