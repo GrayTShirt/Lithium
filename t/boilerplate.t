@@ -45,7 +45,7 @@ sub module_boilerplate_ok
 		"'version information here'"  => qr/to provide version information/,
 	);
 
-	module_boilerplate_ok('lib/lithium.pm');
+	module_boilerplate_ok('lib/Lithium.pm');
 }
 
 done_testing;

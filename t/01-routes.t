@@ -2,8 +2,9 @@
 
 use strict;
 use warnings;
+
 use Test::More;
-use Lithium;
+use t::common;
 
 
 diag "Testing lithium $Lithium::VERSION routes";

@@ -7,7 +7,7 @@ use POSIX;
 use Test::More;
 use Lithium;
 use LWP::UserAgent;
-use Synacor::Test::Selenium;
+use Test::Lithium;
 
 my $DANCER_PORT  = 8910;
 my $PHANTOM_PORT = 16211;
