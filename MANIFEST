@@ -2,12 +2,15 @@ bin/lithium
 lib/Lithium.pm
 lib/Lithium/Cache.pm
 lib/Lithium/Daemon.pm
+LICENSE
 Makefile.PL
 MANIFEST
 README
 t/00-load.t
 t/01-routes.t
+t/02-stats.t
 t/boilerplate.t
 t/common.t
 t/pod-coverage.t
 t/pod.t
+TODO

@@ -5,4 +5,20 @@ use warnings;
 
 use Lithium;
 
-Lithium::run;
+Lithium::Daemon::start;
+
+=head1 NAME
+
+=head2 SYNOPSIS
+
+=head2 DESCRIPTION
+
+=head2 EXAMPLES
+
+=head2 SEE ALSO
+
+=head2 AUTHOR
+
+Lithium was designed and written by Dan Molik.
+
+=cut

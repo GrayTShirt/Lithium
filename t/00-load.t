@@ -2,11 +2,10 @@
 
 use strict;
 use warnings;
+
 use Test::More;
 
-BEGIN {
-	use_ok('Lithium');
-}
+BEGIN { use_ok('Lithium'); }
 
 diag("Testing Lithium $Lithium::VERSION, Perl $], $^X");
 
