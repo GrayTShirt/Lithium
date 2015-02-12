@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+package t::common;
+
 use strict;
 use warnings;
 
