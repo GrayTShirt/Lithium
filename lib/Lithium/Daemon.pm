@@ -74,9 +74,9 @@ sub stop
 
 }
 
-=head1 Lithium::Daemon
+=head1 NAME
 
-Now witness this fully armed and operational Selenium Grip replacement.
+Lithium::Daemon - Now witness this fully armed and operational Selenium Grip replacement.
 
 =head2 SYNOPSIS
 

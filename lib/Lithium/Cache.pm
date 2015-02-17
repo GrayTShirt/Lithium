@@ -36,9 +36,9 @@ for my $sub (qw/CONFIG NODES OLD SESSIONS STATS/){
 }
 use strict 'refs';
 
-=head1 Lithium::Cache
+=head1 NAME
 
-A shared memory mapped space.
+Lithium::Cache - A shared memory mapped space.
 
 =head2 SYNOPSIS
 

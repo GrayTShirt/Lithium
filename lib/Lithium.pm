@@ -58,37 +58,6 @@ $SIG{INT} = $SIG{TERM} = $SIG{QUIT} = sub {
 	}
 	exit;
 };
-my %OPTIONS = (
-	config  => '/etc/lithium.conf',
-);
-
-my $config_file;
-if (-f $OPTIONS{config}) {
-	eval { $config_file = LoadFile($OPTIONS{config}); 1 }
-		or die "Failed to load $OPTIONS{config}: $@\n";
-} else {
-	print STDERR "No configuration file found starting|stopping with defaults\n";
-}
-
-for (keys %$config_file) {
-	$CONFIG->{$_} = $config_file->{$_};
-	$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
-}
-for (keys %OPTIONS) {
-	$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
-}
-
-if ($CONFIG->{log} =~ m/syslog/i) {
-	set syslog   => { facility => $CONFIG->{log_facility}, ident => __PACKAGE__, };
-} elsif($CONFIG->{log} =~ m/file/i) {
-	set log_file => $CONFIG->{log_file};
-}
-set logger      => $CONFIG->{log};
-set log         => $CONFIG->{log_level};
-set show_errors =>  1;
-
-set serializer   => 'JSON';
-set content_type => 'application/json';
 
 
 get qr/(\/lithium)?\/(help|docs)/ => sub {
@@ -329,8 +298,45 @@ sub spawn_worker
 	return $pid;
 }
 
+sub _configure
+{
+	my ($options) = @_;
+	my %OPTIONS = (
+		config  => '/etc/lithium.conf',
+	);
+
+	my $config_file;
+	if (-f $OPTIONS{config}) {
+		eval { $config_file = LoadFile($OPTIONS{config}); 1 }
+			or die "Failed to load $OPTIONS{config}: $@\n";
+	} else {
+		print STDERR "No configuration file found starting|stopping with defaults\n";
+	}
+
+	for (keys %$config_file) {
+		$CONFIG->{$_} = $config_file->{$_};
+		$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+	}
+	for (keys %OPTIONS) {
+		$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+	}
+
+	if ($CONFIG->{log} =~ m/syslog/i) {
+		set syslog   => { facility => $CONFIG->{log_facility}, ident => __PACKAGE__, };
+	} elsif($CONFIG->{log} =~ m/file/i) {
+		set log_file => $CONFIG->{log_file};
+	}
+	set logger      => $CONFIG->{log};
+	set log         => $CONFIG->{log_level};
+	set show_errors =>  1;
+
+	set serializer   => 'JSON';
+	set content_type => 'application/json';
+}
+
 sub app
 {
+	_configure(@_);
 	$0 = __PACKAGE__." master";
 	debug "clearing cache file '$CONFIG->{cache_file}'";
 	$CACHE->empty;
@@ -338,7 +344,6 @@ sub app
 	NODES({}); SESSIONS({}); OLD({});
 	STATS({ nodes => 0, runtime => 0, sessions => 0 });
 	debug "initialized the backend";
-	# CONFIG->set($CONFIG);
 	my $server = Plack::Handler::Starman->new(
 			port              => $CONFIG->{port},
 			workers           => $CONFIG->{workers},
@@ -359,9 +364,9 @@ sub app
 }
 
 
-=head1 LITHIUM
+=head1 NAME
 
-A Selenium grid replacement
+Lithium - A Selenium grid replacement
 
 =head2 SYNOPSIS
 

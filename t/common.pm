@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-package t::common;
-
 use strict;
 use warnings;
 
@@ -12,16 +10,15 @@ use LWP::UserAgent;
 use Test::More;
 use Test::Lithium;
 
-my $DANCER_PORT  = 8910;
+my $LITHIUM_PORT  = 8910;
 my $PHANTOM_PORT = 16211;
-my @phantom = qq/
-	\/usr\/bin\/phantomjs
-	--webdriver=$PHANTOM_PORT
-	--webdriver-loglevel='INFO'
-	--ignore-ssl-errors=yes
-	--ssl-protocol=TSLv1
-	>\/dev\/null 2>&1
-/;
+my @phantom = (
+	"/usr/bin/phantomjs",
+	"--webdriver=$PHANTOM_PORT",
+	"--ignore-ssl-errors=yes",
+	"--ssl-protocol=TSLv1",
+	"/dev/null 2>&1",
+);
 
 my %WEBDRIVER_CONFIG = (
 	site     => undef,
@@ -73,7 +70,6 @@ sub is_phantom
 
 sub start_depends
 {
-	set_port($DANCER_PORT);
 	my $target = &test_site;
 
 	# Fire up Dancer
@@ -118,7 +114,7 @@ sub start_depends
 	} else {
 		close STDOUT;
 		close STDERR;
-		Lithium::app();
+		Lithium::app(port => $LITHIUM_PORT);
 		exit 1;
 	}
 	return;
@@ -152,7 +148,7 @@ sub test_site
 {
 	my $hostname = `hostname`;
 	chomp $hostname;
-	return "http://$hostname:$DANCER_PORT/";
+	return "http://$hostname:$LITHIUM_PORT/";
 }
 
 =head1 t::commom
