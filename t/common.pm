@@ -40,7 +40,7 @@ if ($ENV{BROWSER} eq "phantomjs") {
 	plan skip_all => 'Install phantomjs' unless -x $phantom[0];
 	$WEBDRIVER_CONFIG{browser} = "phantomjs";
 	$WEBDRIVER_CONFIG{host}    = "localhost";
-	$WEBDRIVER_CONFIG{port}    =  8910;
+	$WEBDRIVER_CONFIG{port}    =  $PHANTOM_PORT;
 } else {
 	note "Using $ENV{BROWSER} for testing";
 	$WEBDRIVER_CONFIG{host}     = "ae01.buf.synacor.com";

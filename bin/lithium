@@ -11,7 +11,7 @@ my %CONFIG;
 GetOptions(\%CONFIG, qw/
 	help|h|?
 	config|c=s
-	foreground|F=i
+	foreground|F
 	address|a=s
 	port|p=i
 	debug|D

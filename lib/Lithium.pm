@@ -57,8 +57,10 @@ $SIG{INT} = $SIG{TERM} = $SIG{QUIT} = sub {
 	exit;
 };
 
-
 get qr/(\/lithium)?\/(help|docs)/ => sub {
+	forward '/';
+};
+get '/' => sub {
 	header 'Content-Type' => 'text/html';
 	my $p = Pod::Simple::HTML->new;
 	my $html;
