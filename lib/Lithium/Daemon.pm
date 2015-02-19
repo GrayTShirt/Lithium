@@ -2,6 +2,7 @@ package Lithium::Daemon;
 
 use strict;
 use warnings;
+no strict 'refs';
 
 use POSIX qw/:sys_wait_h setgid setuid/;
 use Lithium;
@@ -37,7 +38,7 @@ sub start
 		open STDOUT, ">/dev/null";
 		open STDERR, ">/dev/null";
 		open STDIN,  "</dev/null";
-		&app;
+		Lithium::app;
 		exit 2;
 	}
 
@@ -73,6 +74,8 @@ sub stop
 	return;
 
 }
+
+use strict 'refs';
 
 =head1 NAME
 

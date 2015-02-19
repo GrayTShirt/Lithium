@@ -3,19 +3,76 @@
 use strict;
 use warnings;
 
-use Lithium;
+use Pod::Usage;
+use Getopt::Long;
 
-Lithium::Daemon::start;
+my %CONFIG;
+
+GetOptions(\%CONFIG, qw/
+	help|h|?
+	config|c=s
+	foreground|F=i
+	address|a=s
+	port|p=i
+	debug|D
+/) or pod2usage(2);
+pod2usage(1) if $CONFIG{help};
+
+if ($CONFIG{foreground}) {
+	eval "require Lithium" or die "Unable to find Lithium Class.";
+	$CONFIG{debug} = 1;
+	Lithium::app(%CONFIG);
+} else {
+	eval "require Lithium::Daemon" or die 'Unable to find Lithium::Daemon Class.';
+	Lithium::Daemon::start(%CONFIG);
+}
 
 =head1 NAME
 
-=head2 SYNOPSIS
+lithium - server manager
 
-=head2 DESCRIPTION
+=head1 SYNOPSIS
 
-=head2 EXAMPLES
+lithium [options]
+
+lithium is a simple script to bind together command line options and the daemonization
+functions for the Lithium Perl application.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-h>, B<--help>, B<-?>
+
+Show the help options.
+
+=item B<-c>, B<--config> FILE PATH
+
+The path to the configuration file to use.
+
+=item B<-F>, B<--foreground>
+
+Run Lithium in the foreground, this automatically turns on debugging.
+
+=item B<-p>, B<--port> INT
+
+Override the default port number.
+
+=item B<-a>, B<--address> HOSTNAME|INTERFACE|INET ADDRESS
+
+Override the default address/interface to run on.
+
+=item B<-D>, B<--debug>
+
+Turn on debug mode.
+
+=back
 
 =head2 SEE ALSO
+
+perldoc Lithium
+
+perldoc Lithium::Daemon
 
 =head2 AUTHOR
 

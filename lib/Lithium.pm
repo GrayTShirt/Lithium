@@ -36,14 +36,12 @@ push @{$agent->requests_redirectable}, 'POST';
 
 
 our $CONFIG = {
-	daemon       =>  1,
 	log          => 'syslog',
 	log_level    => 'debug',
 	log_facility => 'daemon',
 	workers      =>  3,
 	keepalive    =>  150,
 	port         =>  8910,
-	daemonize    =>  1,
 	gid          => 'lithium',
 	uid          => 'lithium',
 	pidfile      => '/var/run/lithium.pid',
@@ -290,6 +288,7 @@ sub spawn_worker
 		} else {
 			while (1) {
 				sleep($options{sleep} || 30);
+				no strict 'refs';
 				$options{sub}->();
 			}
 		}
@@ -351,8 +350,8 @@ sub app
 			argv              => [__PACKAGE__,],
 		);
 	info "starting ".__PACKAGE__;
-	spawn_worker(sub => &check_sessions);
-	spawn_worker(sub => &check_nodes);
+	spawn_worker(sub => \&check_sessions);
+	spawn_worker(sub => \&check_nodes);
 	my $pid = fork;
 	exit 1 if $pid < 0;
 	if ($pid == 0) {
@@ -384,12 +383,6 @@ performance metrics.
 The config file is in yaml format.
 
 =over
-
-=item B<daemon>
-
-Daemonize lithium, IE: fork to background, set to 0|no|off|false to not daemonize.
-
-Default: Yes
 
 =item B<log>
 
@@ -607,13 +600,13 @@ Return a PSGI compatible Dancer object.
 
 =head2 AUTHOR
 
-Dan Molik, C<< <dmolik at synacor.com> >>
+Dan Molik, C<< <dan at d3fy dot net> >>
 
 =head2 COPYRIGHT & LICENSE
 
-Copyright 2014 Synacor Inc.
+Copyright 2015 under the General Public License version 3.
 
-All rights reserved.
+See, the supplied LICENSE file for details.
 
 =cut
 
