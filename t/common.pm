@@ -10,7 +10,7 @@ use LWP::UserAgent;
 use Test::More;
 use Test::Lithium;
 
-my $LITHIUM_PORT  = 8910;
+my $LITHIUM_PORT = 11563;
 my $PHANTOM_PORT = 16211;
 my @phantom = (
 	"/usr/bin/phantomjs",
@@ -79,7 +79,7 @@ sub start_depends
 		# pause until we can connect to ourselves
 		my $ua = LWP::UserAgent->new();
 		my $up = 0;
-		for (1 .. 30) {
+		for (1..30) {
 			sleep 1;
 			my $res = $ua->get($target);
 			if ($res->is_success) {
