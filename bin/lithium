@@ -19,7 +19,7 @@ GetOptions(\%CONFIG, qw/
 pod2usage(1) if $CONFIG{help};
 
 
-my $action = $ARGV[0];
+my $action = $ARGV[0] || 'status';
 pod2usage(2) unless $ARGV[0];
 
 if ($ARGV[0] eq 'start') {
@@ -36,6 +36,13 @@ if ($ARGV[0] eq 'start') {
 	Lithium::Daemon::stop(%CONFIG);
 } elsif ($ARGV[0] eq 'status') {
 	# @TODO implement
+	# Lithitum is listening on port ...
+
+	# Lithium is hung :P
+
+	# Lithium is not running
+
+	# IS BROKEY :(
 }
 
 
