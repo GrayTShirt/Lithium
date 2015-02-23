@@ -73,11 +73,11 @@ Run Lithium in the foreground, this automatically turns on debugging.
 
 =item B<-p>, B<--port> INT
 
-Override the default port number.
+Override the default INET Port [8910].
 
 =item B<-a>, B<--address> HOSTNAME|INTERFACE|INET ADDRESS
 
-Override the default address/interface to run on.
+Override the default address/interface [0.0.0.0].
 
 =item B<-D>, B<--debug>
 
