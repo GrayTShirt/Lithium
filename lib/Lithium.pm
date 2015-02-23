@@ -547,13 +547,19 @@ Run a function in a forked process. The pid of the child will be added to
 overall master process list.
 
 spawn_worker has 3 hash type parameters:
+
 sub: The function to run, non-optional required parameter.
+
 dont_loop: disable continuous runs, ie run once. disabled by default.
+
 name: Optional name given to the process, defaults to; __PACKAGE__ worker.
+
 sleep: the schedualed runtime in seconds, defaults to 30 seconds.
 
 Return values:
+
 On failure return 0.
+
 On success return the process pid.
 
 =item I<app>
