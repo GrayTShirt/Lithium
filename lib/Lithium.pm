@@ -3,7 +3,7 @@ package Lithium;
 use strict;
 use warnings;
 
-use Dancer;
+use Dancer qw/:syntax/;
 use Dancer::Logger::Syslog;
 use Plack::Handler::Starman;
 

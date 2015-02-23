@@ -5,6 +5,8 @@ use warnings;
 
 use Pod::Usage;
 use Getopt::Long;
+use Lithium;
+use Lithium::Daemon;
 
 my %CONFIG;
 
@@ -21,18 +23,14 @@ pod2usage(1) if $CONFIG{help};
 
 my $action = $ARGV[0] || 'status';
 pod2usage(2) unless $ARGV[0];
-
 if ($ARGV[0] eq 'start') {
 	if ($CONFIG{foreground}) {
-		eval "require Lithium" or die "Unable to find Lithium Class.";
 		$CONFIG{debug} = 1;
 		Lithium::app(%CONFIG);
 	} else {
-		eval "require Lithium::Daemon" or die 'Unable to find Lithium::Daemon Class.';
 		Lithium::Daemon::start(%CONFIG);
 	}
 } elsif ($ARGV[0] eq 'stop') {
-	eval "require Lithium::Daemon" or die 'Unable to find Lithium::Daemon Class.';
 	Lithium::Daemon::stop(%CONFIG);
 } elsif ($ARGV[0] eq 'status') {
 	# @TODO implement
