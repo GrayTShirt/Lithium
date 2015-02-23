@@ -6,7 +6,7 @@ use t::common;
 diag "Testing lithium $Lithium::VERSION routes";
 my $site = start_depends;
 
-{ # Help
+subtest "Testing help routes" => sub { # Help
 	start_webdriver sel_conf(site => $site);
 	visit '/';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
