@@ -12,7 +12,5 @@ t/01-routes.t
 t/02-stats.t
 t/boilerplate.t
 t/common.pm
-t/common.t
 t/pod-coverage.t
 t/pod.t
-TODO
