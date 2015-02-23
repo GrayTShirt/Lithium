@@ -17,7 +17,7 @@ sub start
 		exit if fork;
 		my $fh;
 		if (-f $pidfile) {
-			open my $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
+			open $fh, "<", $pidfile or die "Failed to read $pidfile: $!\n";
 			my $found_pid = <$fh>;
 			close $fh;
 			if (kill "ZERO", $found_pid) {

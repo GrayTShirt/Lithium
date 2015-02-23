@@ -80,9 +80,9 @@ sub start_depends
 		my $ua = LWP::UserAgent->new();
 		my $up = 0;
 		for (1 .. 30) {
+			sleep 1;
 			my $res = $ua->get($target);
 			$up = $res->is_success; last if $up;
-			sleep 1;
 		}
 		# $T->ok($up, "Dancer is up and running at $target")
 		#	or BAIL_OUT "Test website could not be started from Dancer";
