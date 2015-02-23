@@ -82,10 +82,12 @@ sub start_depends
 		for (1 .. 30) {
 			sleep 1;
 			my $res = $ua->get($target);
-			$up = $res->is_success; last if $up;
+			if ($res->is_success) {
+				last if $res->conent =~ m/help/i;
+			}
 		}
-		# $T->ok($up, "Dancer is up and running at $target")
-		#	or BAIL_OUT "Test website could not be started from Dancer";
+		ok($up, "Dancer is up and running at $target")
+			or BAIL_OUT "Test website could not be started from Dancer";
 
 		# Fire up Phantom
 		if ($ENV{BROWSER} eq "phantomjs") {
