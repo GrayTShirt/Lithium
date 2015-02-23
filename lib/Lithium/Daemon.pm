@@ -9,7 +9,7 @@ use Lithium;
 
 sub start
 {
-	Lithium::info "starting ".__PACKAGE__;
+	*{"Lithium::info"}->("starting ".__PACKAGE__);
 	my $pid = fork;
 	my $pidfile = ${*{"Lithium::CONFIG"}}->{pidfile};
 	exit 1 if $pid < 0;
@@ -48,7 +48,7 @@ sub start
 
 sub stop
 {
-	Lithium::info "stopping ".__PACKAGE__;
+	*{"Lithium::info"}->("stopping ".__PACKAGE__);
 	for (@{*{"Lithium::PIDS"}}) {
 		kill 'TERM', $_;
 	}

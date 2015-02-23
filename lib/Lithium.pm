@@ -7,9 +7,6 @@ use Dancer qw/:syntax/;
 use Dancer::Logger::Syslog;
 use Plack::Handler::Starman;
 
-our ($CACHE, $NODES, $SESSIONS, $STATS, $OLD);
-require Lithium::Cache;
-
 use YAML::XS qw/LoadFile/;
 use Time::HiRes qw/time/;
 use Devel::Size qw(size);
@@ -35,6 +32,7 @@ $agent->default_header(Content_Type => "application/json;charset=UTF-8");
 push @{$agent->requests_redirectable}, 'POST';
 
 
+our ($CACHE, $NODES, $SESSIONS, $STATS, $OLD);
 our $CONFIG = {
 	log          => 'syslog',
 	log_level    => 'debug',
@@ -301,13 +299,12 @@ sub spawn_worker
 
 sub _configure
 {
-	my ($options) = @_;
-	my %OPTIONS = (
-		config  => '/etc/lithium.conf',
-	);
+	my (%OPTIONS) = @_;
 
+	$OPTIONS{config} ||= '/etc/lithium.conf';
 	my $config_file;
 	if (-f $OPTIONS{config}) {
+		print STDERR "Trying to read $OPTIONS{config}\n";
 		eval { $config_file = LoadFile($OPTIONS{config}); 1 }
 			or die "Failed to load $OPTIONS{config}: $@\n";
 	} else {
@@ -339,9 +336,11 @@ sub app
 {
 	_configure(@_);
 	$0 = __PACKAGE__." master";
+	require Lithium::Cache;
 	debug "clearing cache file '$CONFIG->{cache_file}'";
 	$CACHE->empty;
 	debug "success on clearing cache";
+
 	NODES({}); SESSIONS({}); OLD({});
 	STATS({ nodes => 0, runtime => 0, sessions => 0 });
 	debug "initialized the backend";
@@ -351,7 +350,7 @@ sub app
 			keepalive_timeout => $CONFIG->{keepalive},
 			argv              => [__PACKAGE__,],
 		);
-	info("starting ".__PACKAGE__);
+	debug "starting Lithium";
 	spawn_worker(sub => \&check_sessions);
 	spawn_worker(sub => \&check_nodes);
 	my $pid = fork;

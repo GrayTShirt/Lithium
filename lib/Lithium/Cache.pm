@@ -8,7 +8,7 @@ use Cache::FastMmap;
 BEGIN {
 	no strict 'refs'; no warnings 'once';
 	${*{"Lithium::CACHE"}} = Cache::FastMmap->new(
-		share_file     => '/tmp/lithium-cache.tmp', # $CONFIG->{cache_file},
+		share_file     => ${*{"Lithium::CONFIG"}}->{cache_file},
 		expire_time    =>  0,
 		unlink_on_exit =>  0,
 		empty_on_exit  =>  0,
