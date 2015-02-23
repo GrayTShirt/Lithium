@@ -83,7 +83,8 @@ sub start_depends
 			sleep 1;
 			my $res = $ua->get($target);
 			if ($res->is_success) {
-				last if $res->conent =~ m/help/i;
+				$up = 1;
+				last if $res->content =~ m/help/i;
 			}
 		}
 		ok($up, "Dancer is up and running at $target")

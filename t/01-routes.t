@@ -6,7 +6,7 @@ use t::common;
 diag "Testing lithium $Lithium::VERSION routes";
 my $site = start_depends;
 
-subtest "Testing help routes" => sub { # Help
+subtest "Testing help routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -19,18 +19,18 @@ subtest "Testing help routes" => sub { # Help
 	visit '/lithium/docs';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	stop_webdriver;
-}
+};
 
-{ # Stats
+subtest "Ensure /stats" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/stats';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	visit '/lithium/stats';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	stop_webdriver;
-}
+};
 
-{ # Health
+subtest "Ensure /health" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/health';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -45,31 +45,32 @@ subtest "Testing help routes" => sub { # Help
 	visit '/lithium/v2/health';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	stop_webdriver;
-}
+};
 
-{ # Sessions
+subtest "Ensure /sessions" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/sessions';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	visit '/wd/hub/sessions';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	stop_webdriver;
-}
+};
 
-{ # Nodes
+subtest "Ensure /nodes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/nodes';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	visit '/wd/hub/nodes';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	stop_webdriver;
-}
+};
 
-{ # Nodes
+subtest "Does 404 really 404?" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/404';
 	is title, 'Error 404', "confirm the title is 'Error 404'";
 	stop_webdriver;
-}
+};
+
 stop_depends;
 done_testing;
