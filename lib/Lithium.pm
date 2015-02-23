@@ -351,7 +351,7 @@ sub app
 			keepalive_timeout => $CONFIG->{keepalive},
 			argv              => [__PACKAGE__,],
 		);
-	info "starting ".__PACKAGE__;
+	info("starting ".__PACKAGE__);
 	spawn_worker(sub => \&check_sessions);
 	spawn_worker(sub => \&check_nodes);
 	my $pid = fork;
