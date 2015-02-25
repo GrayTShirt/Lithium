@@ -81,9 +81,9 @@ Dan Molik C<< <dmolik at synacor.com> >>
 
 =head2 COPYRIGHT & LICENSE
 
-Copyright 2014 Synacor Inc.
+Copyright 2015 Dan Molik <dan at d3fy.net>
 
-All rights reserved.
+Licensed under the GPL v3.
 
 =cut
 
