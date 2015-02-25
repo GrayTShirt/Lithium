@@ -6,7 +6,7 @@ use t::common;
 diag "Testing lithium $Lithium::VERSION routes";
 my $site = start_depends;
 
-subtest "Testing help routes" => sub {
+subtest "Ensure /help routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -21,7 +21,7 @@ subtest "Testing help routes" => sub {
 	stop_webdriver;
 };
 
-subtest "Ensure /stats" => sub {
+subtest "Ensure /stats routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/stats';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -30,7 +30,7 @@ subtest "Ensure /stats" => sub {
 	stop_webdriver;
 };
 
-subtest "Ensure /health" => sub {
+subtest "Ensure /health routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/health';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -47,7 +47,7 @@ subtest "Ensure /health" => sub {
 	stop_webdriver;
 };
 
-subtest "Ensure /sessions" => sub {
+subtest "Ensure /sessions routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/sessions';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -56,7 +56,7 @@ subtest "Ensure /sessions" => sub {
 	stop_webdriver;
 };
 
-subtest "Ensure /nodes" => sub {
+subtest "Ensure /nodes routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/nodes';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";

@@ -109,7 +109,7 @@ get '/' => sub {
 	return $html;
 };
 get qr|(/wd/hub)?/sessions| => sub {
-	if (request->env->{HTTP_ACCEPT} =~ m/json/i) {
+	if (request->header('HTTP_ACCEPT') =~ m/json/i) {
 		return to_json &SESSIONS;
 	} else {
 		header 'Content-Type' => "text/plain";
@@ -117,7 +117,7 @@ get qr|(/wd/hub)?/sessions| => sub {
 	}
 };
 get qr|(/wd/hub)?/nodes| => sub {
-	if (request->env->{HTTP_ACCEPT} =~ m/json/i) {
+	if (request->header('HTTP_ACCEPT') =~ m/json/i) {
 		return to_json &NODES
 	} else {
 		header 'Content-Type' => "text/plain";
@@ -125,7 +125,7 @@ get qr|(/wd/hub)?/nodes| => sub {
 	}
 };
 get qr|(/lithium)?/stats| => sub {
-	if (request->env->{HTTP_ACCEPT} =~ m/json/i) {
+	if (request->header('HTTP_ACCEPT') =~ m/json/i) {
 		return to_json &STATS;
 	} else {
 		header 'Content-Type' => "text/plain";
