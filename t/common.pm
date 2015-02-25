@@ -117,7 +117,7 @@ sub start_depends
 	} else {
 		close STDOUT;
 		close STDERR;
-		Lithium::app(port => $LITHIUM_PORT);
+		Lithium::app(port => $LITHIUM_PORT, cache_file => 't/cache.tmp');
 		exit 1;
 	}
 	return;
