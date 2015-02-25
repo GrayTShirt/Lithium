@@ -6,7 +6,7 @@ use t::common;
 use JSON::XS qw/decode_json/;
 use YAML::XS;
 
-diag "Testing lithium $Lithium::VERSION routes";
+diag "Testing lithium $Lithium::VERSION Ojects";
 my $site = start_depends;
 
 my $stats_obj = {nodes => 0, runtime => 0, sessions => 0};
