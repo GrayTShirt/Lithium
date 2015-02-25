@@ -68,8 +68,9 @@ subtest 'Connect a Phatomjs to Lithium' => sub {
 		});
 	visit('/stats');
 	$stats = decode_json(html("pre"));
-	cmp_deeply($stats, {'nodes' => 1, 'runtime' => 0, 'sessions' => 1},
-		"Ensure the stats object is updated after a session.");
+	is $stats->{nodes}, 1, "Should have 1 node";
+	is $stats->{sessions}, 2, "Should have 2 sessions";
+	cmp_ok $stats->{runtime}, '>', 0, "Runtime must be greater than 0";
 	stop_webdriver;
 };
 

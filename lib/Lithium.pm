@@ -109,7 +109,8 @@ get '/' => sub {
 	return $html;
 };
 get qr|(/wd/hub)?/sessions| => sub {
-	if (request->header('HTTP_ACCEPT') =~ m/json/i) {
+	if (request->header('HTTP_ACCEPT') &&
+		request->header('HTTP_ACCEPT') =~ m/json/i) {
 		return to_json &SESSIONS;
 	} else {
 		header 'Content-Type' => "text/plain";
@@ -117,7 +118,8 @@ get qr|(/wd/hub)?/sessions| => sub {
 	}
 };
 get qr|(/wd/hub)?/nodes| => sub {
-	if (request->header('HTTP_ACCEPT') =~ m/json/i) {
+	if (request->header('HTTP_ACCEPT') &&
+		request->header('HTTP_ACCEPT') =~ m/json/i) {
 		return to_json &NODES
 	} else {
 		header 'Content-Type' => "text/plain";
@@ -125,7 +127,8 @@ get qr|(/wd/hub)?/nodes| => sub {
 	}
 };
 get qr|(/lithium)?/stats| => sub {
-	if (request->header('HTTP_ACCEPT') =~ m/json/i) {
+	if (request->header('HTTP_ACCEPT') &&
+		request->header('HTTP_ACCEPT') =~ m/json/i) {
 		return to_json &STATS;
 	} else {
 		header 'Content-Type' => "text/plain";
@@ -163,7 +166,7 @@ del '/session/:session_id' => sub {
 	debug "deleting session: $session_id";
 
 	my $node = delete &SESSIONS->{$session_id};
-	SESSIONS->set;
+	SESSIONS($SESSIONS);
 
 	&NODES;
 	my $res = $agent->delete("$NODES->{$node}{url}/session/$session_id");
@@ -250,7 +253,7 @@ sub check_nodes
 		next unless $res->is_success;
 		my $new_old_node = delete $OLD->{$_};
 		OLD($OLD);
-		&STATS->{nodes}++; STATS->set;
+		&STATS->{nodes}++; STATS($STATS);
 		&NODES->{$_} = $new_old_node;
 		NODES($NODES);
 	}
