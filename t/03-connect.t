@@ -11,6 +11,7 @@ use Test::Deep;
 use JSON::XS qw/decode_json/;
 
 diag "Testing lithium $Lithium::VERSION connectivity";
+my @PHANTOMS;
 my $site = start_depends;
 
 subtest 'Connect a Phatomjs to Lithium' => sub {
@@ -19,7 +20,7 @@ subtest 'Connect a Phatomjs to Lithium' => sub {
 		headers => {
 			HTTP_ACCEPT => 'application/json'
 		});
-	spool_a_phantom(port => 16716, grid => $site);
+	push @PHANTOMS, spool_a_phantom(port => 16716, grid => $site);
 	visit('/nodes');
 	my $nodes = decode_json(html("pre"));
 	cmp_deeply($nodes, {
@@ -36,9 +37,43 @@ subtest 'Connect a Phatomjs to Lithium' => sub {
 	cmp_deeply($stats, {'nodes' => 1, 'runtime' => 0, 'sessions' => 0},
 		"Ensure the stats object is updated when node is connected");
 	stop_webdriver;
+
+	start_webdriver sel_conf(
+		site    => $site,
+		host    => 'localhost',
+		port    => LITHIUM_PORT,
+		headers => {
+			HTTP_ACCEPT => 'application/json'
+		});
+	visit '/help';
+	is title, "Lithium - Help Lithium", "Check the title";
+	stop_webdriver;
+
+	start_webdriver sel_conf(
+		site    => $site,
+		host    => 'localhost',
+		port    => LITHIUM_PORT,
+		headers => {
+			HTTP_ACCEPT => 'application/json'
+		});
+	visit '/help';
+	is title, "Lithium - Help Lithium", "Check the title";
+	stop_webdriver;
+
+	start_webdriver sel_conf(
+		site    => $site,
+		port    => PHANTOM_PORT,
+		headers => {
+			HTTP_ACCEPT => 'application/json'
+		});
+	visit('/stats');
+	$stats = decode_json(html("pre"));
+	cmp_deeply($stats, {'nodes' => 1, 'runtime' => 0, 'sessions' => 1},
+		"Ensure the stats object is updated after a session.");
+	stop_webdriver;
 };
 
-redead_phantoms;
+redead_phantoms @PHANTOMS;
 
 stop_depends;
 done_testing;

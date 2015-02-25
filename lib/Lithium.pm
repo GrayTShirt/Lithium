@@ -157,9 +157,6 @@ post qr|(/wd/hub)?/session| => sub {
 	#	if &CONFIG->{pair};
 	status 404; return;
 };
-post '/' => sub {
-	forward '/session';
-};
 
 del '/session/:session_id' => sub {
 	my $session_id = param('session_id');

@@ -81,10 +81,10 @@ sub start_depends
 		my $up = 0;
 		for (1..30) {
 			sleep 1;
-			my $res = $ua->get($target);
+			my $res = $ua->get($target."stats");
 			if ($res->is_success) {
 				$up = 1;
-				last if $res->content =~ m/help/i;
+				last if $res->content =~ m/nodes/i;
 			}
 		}
 		ok($up, "Dancer is up and running at $target")
@@ -123,6 +123,15 @@ sub start_depends
 	return;
 }
 
+sub LITHIUM_PORT
+{
+	$LITHIUM_PORT;
+}
+sub PHANTOM_PORT
+{
+	$PHANTOM_PORT;
+}
+
 sub killproc
 {
 	my ($pid) = @_;
@@ -154,7 +163,6 @@ sub test_site
 	return "http://$hostname:$LITHIUM_PORT/";
 }
 
-my @PHANTOMS;
 sub spool_a_phantom
 {
 	my (%options) = @_;
@@ -166,7 +174,6 @@ sub spool_a_phantom
 		"--ssl-protocol=TSLv1",
 	);
 	my $forked = fork;
-	push @PHANTOMS, $forked;
 	return 0 if $forked < 0;
 	if ($forked) {
 		# pause until we can connect to webdriver
@@ -184,10 +191,11 @@ sub spool_a_phantom
 		exec join(" ", @phantom);
 		exit 1;
 	}
+	return $forked;
 }
 sub redead_phantoms
 {
-	for (@PHANTOMS) {
+	for (@_) {
 		killproc $_;
 	}
 }
