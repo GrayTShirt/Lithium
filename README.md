@@ -27,4 +27,4 @@ License and Copyright
 
 Copyright 2015 by Dan Molik <dan@d3fy.net>
 
-Under the GPL v3 License
+Under the GPL v3 License, see the included LICENSE file for details.
