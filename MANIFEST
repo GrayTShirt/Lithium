@@ -5,11 +5,11 @@ lib/Lithium/Daemon.pm
 LICENSE
 Makefile.PL
 MANIFEST
-README
 README.md
 t/00-load.t
 t/01-routes.t
-t/02-stats.t
+t/02-objects.t
+t/03-connect.t
 t/boilerplate.t
 t/common.pm
 t/pod-coverage.t
