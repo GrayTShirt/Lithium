@@ -55,10 +55,7 @@ $SIG{INT} = $SIG{TERM} = $SIG{QUIT} = sub {
 	exit;
 };
 
-get qr/(\/lithium)?\/(help|docs)/ => sub {
-	forward '/';
-};
-get '/' => sub {
+get qr@(/lithium)?/(help|docs)?@ => sub {
 	debug "getting help";
 	header 'Content-Type' => 'text/html';
 	my $p = Pod::Simple::HTML->new;
@@ -109,32 +106,30 @@ get '/' => sub {
 	$p->parse_file(Cwd::abs_path(__FILE__));
 	return $html;
 };
-get qr|(/wd/hub)?/sessions| => sub {
+
+sub _handle
+{
+	no strict 'refs';
+	my ($sub) = @_;
+	*{"$sub"}->();
 	if (request->header('HTTP_ACCEPT') &&
 		request->header('HTTP_ACCEPT') =~ m/json/i) {
-		return to_json &SESSIONS;
+		return to_json ${*{"$sub"}};
 	} else {
 		header 'Content-Type' => "text/plain";
-		return to_yaml &SESSIONS;
+		return to_yaml ${*{"$sub"}};
 	}
+	use strict 'refs';
+}
+
+get qr@(/lithium|/wd/hub)?/stats@ => sub {
+	_handle('STATS');
 };
-get qr|(/wd/hub)?/nodes| => sub {
-	if (request->header('HTTP_ACCEPT') &&
-		request->header('HTTP_ACCEPT') =~ m/json/i) {
-		return to_json &NODES
-	} else {
-		header 'Content-Type' => "text/plain";
-		return to_yaml &NODES;
-	}
+get qr@(/lithium|/wd/hub)?/nodes@ => sub {
+	_handle('NODES');
 };
-get qr|(/lithium)?/stats| => sub {
-	if (request->header('HTTP_ACCEPT') &&
-		request->header('HTTP_ACCEPT') =~ m/json/i) {
-		return to_json &STATS;
-	} else {
-		header 'Content-Type' => "text/plain";
-		return to_yaml &STATS;
-	}
+get qr@(/lithium|/wd/hub)?/sessions@ => sub {
+	_handle('SESSIONS');
 };
 
 post qr|(/wd/hub)?/session| => sub {
@@ -205,7 +200,7 @@ post '/grid/register' => sub {
 	return "ok";
 };
 
-get qr|(/lithium)?(/v\d)?/health| => sub {
+get qr@(/lithium)?(/v\d)?/health@ => sub {
 	&NODES; &STATS; &OLD; &SESSIONS;
 	my $health = {
 		name    => __PACKAGE__,
@@ -325,7 +320,7 @@ sub _configure
 	} elsif($CONFIG->{log} =~ m/file/i) {
 		set log_file => $CONFIG->{log_file};
 	}
-	set logger      => $CONFIG->{log};
+	set logger       => $CONFIG->{log};
 	if ($CONFIG->{debug}) {
 		$CONFIG->{log_level} = 'debug';
 		set show_errors =>  1;

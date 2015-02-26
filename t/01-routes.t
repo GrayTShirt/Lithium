@@ -21,15 +21,6 @@ subtest "Ensure /help routes" => sub {
 	stop_webdriver;
 };
 
-subtest "Ensure /stats routes" => sub {
-	start_webdriver sel_conf(site => $site);
-	visit '/stats';
-	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
-	visit '/lithium/stats';
-	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
-	stop_webdriver;
-};
-
 subtest "Ensure /health routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/health';
@@ -47,9 +38,22 @@ subtest "Ensure /health routes" => sub {
 	stop_webdriver;
 };
 
+subtest "Ensure /stats routes" => sub {
+	start_webdriver sel_conf(site => $site);
+	visit '/stats';
+	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
+	visit '/lithium/stats';
+	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
+	visit '/wd/hub/stats';
+	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
+	stop_webdriver;
+};
+
 subtest "Ensure /sessions routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/sessions';
+	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
+	visit '/lithium/sessions';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	visit '/wd/hub/sessions';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
@@ -59,6 +63,8 @@ subtest "Ensure /sessions routes" => sub {
 subtest "Ensure /nodes routes" => sub {
 	start_webdriver sel_conf(site => $site);
 	visit '/nodes';
+	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
+	visit '/lithium/nodes';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
 	visit '/wd/hub/nodes';
 	isnt title, 'Error 404', "confirm the title is not 'Error 404'";
