@@ -7,7 +7,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
 	NAME                => 'Lithium',
-	AUTHOR              => q{Dan Molik <dan@d3fy.net>},
+	AUTHOR              => q{Dan Molik <dmolik@synacor.com>},
 	VERSION_FROM        => 'lib/Lithium.pm',
 	ABSTRACT_FROM       => 'lib/Lithium.pm',
 	($ExtUtils::MakeMaker::VERSION >= 6.3002
@@ -19,6 +19,7 @@ WriteMakefile(
 		                   ],
 	PREREQ_PM => {
 		'Test::More'             => 0,
+		'Test::Lithium'          => 0,
 		'Dancer'                 => 0,
 		'Dancer::Logger::Syslog' => 0,
 		'Starman'                => 0,

@@ -101,13 +101,11 @@ Stop the Lithium application.
 
 =head2 AUTHOR
 
-Dan Molik C<< <dmolik at synacor.com> >>
+Dan Molik C<< <dmolik@synacor.com> >>
 
 =head2 COPYRIGHT & LICENSE
 
-Copyright 2014 Synacor Inc.
-
-All rights reserved.
+Copyright 2015 under GNU GPL v3.
 
 =cut
 

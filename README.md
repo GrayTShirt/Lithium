@@ -25,6 +25,6 @@ perldoc command.
 License and Copyright
 ---------------------
 
-Copyright 2015 by Dan Molik <dan@d3fy.net>
+Copyright 2015 by Dan Molik <dmolik@synacor.com>
 
 Under the GPL v3 License, see the included LICENSE file for details.

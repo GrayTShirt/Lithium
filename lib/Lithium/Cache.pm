@@ -77,13 +77,13 @@ same data object from the cache.
 
 =head2 AUTHOR
 
-Dan Molik C<< <dmolik at synacor.com> >>
+Dan Molik C<< <dmolik@synacor.com> >>
 
 =head2 COPYRIGHT & LICENSE
 
-Copyright 2015 Dan Molik <dan at d3fy.net>
+Copyright 2015 Dan Molik <dmolik@synacor.com>
 
-Licensed under the GPL v3.
+Licensed under the GNU GPL v3.
 
 =cut
 

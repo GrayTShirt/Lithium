@@ -611,11 +611,11 @@ Return a PSGI compatible Dancer object.
 
 =head2 AUTHOR
 
-Dan Molik, C<< <dan at d3fy dot net> >>
+Dan Molik, C<< <dmolik@synacor.com> >>
 
 =head2 COPYRIGHT & LICENSE
 
-Copyright 2015 under the General Public License version 3.
+Copyright 2015 under the GNU GPL v3.
 
 See, the supplied LICENSE file for details.
 
