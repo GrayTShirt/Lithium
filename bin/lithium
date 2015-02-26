@@ -26,6 +26,7 @@ pod2usage(2) unless $ARGV[0];
 if ($ARGV[0] eq 'start') {
 	if ($CONFIG{foreground}) {
 		$CONFIG{debug} = 1;
+		$CONFIG{log}   = 'console';
 		Lithium::app(%CONFIG);
 	} else {
 		Lithium::Daemon::start(%CONFIG);

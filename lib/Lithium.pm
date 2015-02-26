@@ -59,6 +59,7 @@ get qr/(\/lithium)?\/(help|docs)/ => sub {
 	forward '/';
 };
 get '/' => sub {
+	debug "getting help";
 	header 'Content-Type' => 'text/html';
 	my $p = Pod::Simple::HTML->new;
 	my $html;
@@ -316,7 +317,7 @@ sub _configure
 		$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
 	}
 	for (keys %OPTIONS) {
-		$CONFIG->{$_} = $OPTIONS{$_} if exists $OPTIONS{$_};
+		$CONFIG->{$_} = $OPTIONS{$_};
 	}
 
 	if ($CONFIG->{log} =~ m/syslog/i) {
@@ -325,8 +326,11 @@ sub _configure
 		set log_file => $CONFIG->{log_file};
 	}
 	set logger      => $CONFIG->{log};
-	set log         => $CONFIG->{log_level};
-	set show_errors =>  1;
+	if ($CONFIG->{debug}) {
+		$CONFIG->{log_level} = 'debug';
+		set show_errors =>  1;
+	}
+	set log          => $CONFIG->{log_level};
 
 	set serializer   => 'JSON';
 	set content_type => 'application/json';
