@@ -41,9 +41,6 @@ subtest "Does check_nodes do it's jerb?" => sub {
 	$nodes = decode_json(html("pre"));
 	cmp_deeply($nodes, {}, "Node should be removed from list");
 	push @PHANTOMS, spool_a_phantom(port => 16716);
-	visit('/nodes');
-	$nodes = decode_json(html("pre"));
-	cmp_deeply($nodes, {}, "Node should not be in rotation yet");
 	sleep 5; # wait 5 sec to have check_nodes push phantom back into production.
 	visit '/nodes';
 	$nodes = decode_json(html("pre"));
