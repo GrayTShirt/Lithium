@@ -64,7 +64,7 @@ subtest "What happens when sessions go stale?" => sub {
 	my @PHANTOMS;
 	push @PHANTOMS, spool_a_phantom(port => 16716, grid => $site);
 	my $hang_session = LWP::UserAgent->new();
-	push $hang_session->requests_redirectable, 'POST';
+	push @{$hang_session->requests_redirectable}, 'POST';
 	my $res = $hang_session->post(
 		"http://localhost:".LITHIUM_PORT."/session",
 		Content => encode_json(
