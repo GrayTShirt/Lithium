@@ -117,7 +117,12 @@ sub start_depends
 	} else {
 		close STDOUT;
 		close STDERR;
-		Lithium::app(port => $LITHIUM_PORT, cache_file => 't/cache.tmp');
+		Lithium::app(
+			port         => $LITHIUM_PORT,
+			cache_file   => 't/cache.tmp',
+			worker_splay =>  5,
+			idle_session =>  5,
+		);
 		exit 1;
 	}
 	return;
@@ -169,10 +174,11 @@ sub spool_a_phantom
 	my @phantom = (
 		"/usr/bin/phantomjs",
 		"--webdriver='127.0.0.1:$options{port}'",
-		"--webdriver-selenium-grid-hub='$options{grid}'",
 		"--ignore-ssl-errors=yes",
 		"--ssl-protocol=TSLv1",
 	);
+	push @phantom, "--webdriver-selenium-grid-hub='$options{grid}'"
+		if $options{grid};
 	my $forked = fork;
 	return 0 if $forked < 0;
 	if ($forked) {

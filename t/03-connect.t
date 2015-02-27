@@ -10,7 +10,7 @@ use Test::Deep;
 
 use JSON::XS qw/decode_json/;
 
-diag "Testing lithium $Lithium::VERSION connectivity";
+diag "Testing lithium-$Lithium::VERSION Connectivity";
 my @PHANTOMS;
 my $site = start_depends;
 

@@ -38,6 +38,7 @@ our $CONFIG = {
 	log_level    => 'debug',
 	log_facility => 'daemon',
 	workers      =>  3,
+	worker_splay =>  30,
 	keepalive    =>  150,
 	port         =>  8910,
 	gid          => 'lithium',
@@ -262,8 +263,9 @@ sub check_sessions
 	my $time = time;
 	for my $session (keys %{&SESSIONS}) {
 		my $node = $SESSIONS->{$session};
-		my $start_time = $NODES->{$node}{sessions}{$session};
-		if ($CONFIG->{idle_session} && ($time - $start_time) > $CONFIG->{idle_session}) {
+		my $runtime = $time - $NODES->{$node}{sessions}{$session};
+		if ($CONFIG->{idle_session} && $runtime > $CONFIG->{idle_session}) {
+			debug "Removing old session";
 			$agent->delete("$NODES->{$node}{url}/session/$session");
 			delete $NODES->{$node}{sessions}{$session};
 			delete $SESSIONS->{$session};
@@ -350,8 +352,8 @@ sub app
 			argv              => [__PACKAGE__,],
 		);
 	debug "starting Lithium";
-	spawn_worker(sub => \&check_sessions);
-	spawn_worker(sub => \&check_nodes);
+	spawn_worker(sub => \&check_sessions, sleep => $CONFIG->{worker_splay});
+	spawn_worker(sub => \&check_nodes, sleep => $CONFIG->{worker_splay});
 	my $pid = fork;
 	exit 1 if $pid < 0;
 	if ($pid == 0) {

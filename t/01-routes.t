@@ -3,7 +3,7 @@ use warnings;
 use Test::More;
 use t::common;
 
-diag "Testing lithium $Lithium::VERSION routes";
+diag "Testing lithium-$Lithium::VERSION Routes";
 my $site = start_depends;
 
 subtest "Ensure /help routes" => sub {

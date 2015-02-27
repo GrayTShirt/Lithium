@@ -1,0 +1,14 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use LWP::UserAgent;
+use JSON::XS qw/encode_json/;
+my $hang_session = LWP::UserAgent->new();
+push $hang_session->requests_redirectable, 'POST';
+my $res = $hang_session->post(
+	"http://localhost:8910/session",
+	Content => encode_json(
+		{ desiredCapabilities => { browserName => 'phantomjs' } }
+	));

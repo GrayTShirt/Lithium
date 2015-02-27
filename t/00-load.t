@@ -5,7 +5,11 @@ use warnings;
 
 use Test::More;
 
-BEGIN { use_ok('Lithium'); }
+BEGIN {
+	use_ok('Lithium');
+	use_ok('Lithium::Cache');
+	use_ok('Lithium::Daemon');
+}
 
 diag("Testing Lithium $Lithium::VERSION, Perl $], $^X");
 
