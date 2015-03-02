@@ -43,7 +43,7 @@ our $CONFIG = {
 	port         =>  8910,
 	gid          => 'lithium',
 	uid          => 'lithium',
-	pidfile      => '/var/run/lithium.pid',
+	pidfile      => '/var/run/lithium',
 	cache_file   => '/tmp/lithium-cache.tmp',
 	log_file     => '/var/log/lithium.log',
 };

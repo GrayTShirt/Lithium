@@ -1,0 +1,29 @@
+# lithium.conf
+#
+# This file uses yaml format
+
+#############################
+
+# Default Logging parameters
+log:           syslog
+log_level:     info
+log_facility:  daemon
+
+# Number of HTML workers
+workers:       3
+# Time between workers executing helper functions
+workers_spaly: 30
+
+# Default html port
+port: 8910
+
+# username & group
+uid: lithium
+gid: lithium
+
+pidfile: /var/run/lithium
+
+# Cache file path
+cache_file: /tmp/lithium-cache.tmp
+
+# vim:ft=yaml:ts=2:et
