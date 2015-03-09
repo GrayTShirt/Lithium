@@ -18,6 +18,7 @@ BEGIN {
 	for my $cache (qw/NODES OLD SESSIONS STATS/) {
 		${*{"Lithium::$cache"}} = ${*{"Lithium::CACHE"}}->get($cache);
 	}
+	${*{"Lithium::CACHE"}}->set('CONFIG', ${*{"Lithium::CONFIG"}});
 	use strict 'refs'; use warnings 'once';
 }
 

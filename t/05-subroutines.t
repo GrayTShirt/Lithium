@@ -77,6 +77,7 @@ subtest "What happens when sessions go stale?" => sub {
 	visit('/sessions');
 	my $sessions = decode_json(html("pre"));
 	cmp_ok scalar(keys %$sessions), "==", 1, "We should find the first session";
+	# Lithium::check_sessions;
 	sleep 10; # Idle out the session.
 	visit('/sessions');
 	$sessions = decode_json(html("pre"));

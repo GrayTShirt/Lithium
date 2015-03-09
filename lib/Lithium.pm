@@ -35,7 +35,7 @@ push @{$agent->requests_redirectable}, 'POST';
 our ($CACHE, $NODES, $SESSIONS, $STATS, $OLD);
 our $CONFIG = {
 	log          => 'syslog',
-	log_level    => 'debug',
+	log_level    => 'info',
 	log_facility => 'daemon',
 	workers      =>  3,
 	worker_splay =>  30,
@@ -135,7 +135,7 @@ get qr@(/lithium|/wd/hub)?/sessions@ => sub {
 
 post qr|(/wd/hub)?/session| => sub {
 	my $request = from_json(request->body);
-	for (keys %{&NODES}) {
+	for (keys %{NODES()}) {
 		next unless scalar keys %{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances};
 		next unless $request->{desiredCapabilities}{browserName} eq $NODES->{$_}{browser};
 		my $res = $agent->post($NODES->{$_}{url}."/session", Content => request->body);
@@ -144,9 +144,9 @@ post qr|(/wd/hub)?/session| => sub {
 			$res->{value}{node} = $NODES->{$_}{url};
 			debug "session ($res->{sessionId}) created for ".request->host;
 
-			$NODES->{$_}{sessions}{$res->{sessionId}} = time;
-			&SESSIONS->{$res->{sessionId}} = $_; # Reverse hash session -> node
-			&STATS->{sessions}++;
+			NODES()->{$_}{sessions}{$res->{sessionId}} = time;
+			SESSIONS()->{$res->{sessionId}} = $_; # Reverse hash session -> node
+			STATS()->{sessions}++;
 			NODES($NODES); STATS($STATS); SESSIONS($SESSIONS);
 
 			return to_json($res);
@@ -187,7 +187,7 @@ post '/grid/register' => sub {
 		." at $node->{configuration}{url},"
 		." available sessions: $node->{capabilities}[0]{maxInstances})";
 
-	&NODES->{"$node->{configuration}{url}_$node->{capabilities}[0]{browserName}"} =
+	NODES()->{"$node->{configuration}{url}_$node->{capabilities}[0]{browserName}"} =
 		{
 			url           => $node->{configuration}{url},
 			max_instances => $node->{capabilities}[0]{maxInstances},
@@ -196,7 +196,7 @@ post '/grid/register' => sub {
 		};
 	NODES($NODES);
 
-	&STATS->{nodes}++; STATS($STATS);
+	STATS()->{nodes}++; STATS($STATS);
 
 	return "ok";
 };
@@ -316,6 +316,10 @@ sub _configure
 	for (keys %OPTIONS) {
 		$CONFIG->{$_} = $OPTIONS{$_};
 	}
+	if( -e $CONFIG->{cache_file}) {
+		unlink $CONFIG->{cache_file} or die "Unable to clear cache file [$CONFIG->{cache_file}]";
+	}
+	require Lithium::Cache;
 
 	if ($CONFIG->{log} =~ m/syslog/i) {
 		set syslog   => { facility => $CONFIG->{log_facility}, ident => __PACKAGE__, };
@@ -337,11 +341,6 @@ sub app
 {
 	_configure(@_);
 	$0 = __PACKAGE__." master";
-	require Lithium::Cache;
-	debug "clearing cache file '$CONFIG->{cache_file}'";
-	$CACHE->empty;
-	debug "success on clearing cache";
-
 	NODES({}); SESSIONS({}); OLD({});
 	STATS({ nodes => 0, runtime => 0, sessions => 0 });
 	debug "initialized the backend";
