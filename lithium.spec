@@ -82,6 +82,4 @@ fi
 
 %files -f %{modulename}-%{version}-filelist
 %defattr(-,root,root)
-%config /etc/sysconfig/nlma
 %config /etc/lithium.conf
-
