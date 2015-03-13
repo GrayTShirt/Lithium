@@ -1,0 +1,2 @@
+pre: USER=lithium ; GROUP=$USER ; HOMEDIR=/var/$USER ; getent group $GROUP >/dev/null || groupadd -r $GROUP ; getent passwd $USER >/dev/null || useradd -r -g $GROUP -d $HOMEDIR -s /sbin/nologin -c "lithium daemon" $USER
+
