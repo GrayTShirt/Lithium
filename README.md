@@ -20,11 +20,17 @@ SUPPORT AND DOCUMENTATION
 After installing, you can find documentation for this module with the
 perldoc command.
 
-    perldoc Lithium
+	perldoc $(which lithium)
+	perldoc Lithium
+	perldoc Lithium::Cache
+	perldoc Lithium::Daemon
+
+For bug fixes and feature requests please submit a ticket with the
+[Github Repo](https://github.com/GrayTShirt/Lithium)
 
 License and Copyright
 ---------------------
 
 Copyright 2015 by Dan Molik <dmolik@synacor.com>
 
-Under the GPL v3 License, see the included LICENSE file for details.
+Under the GNU GPL v3 License, see the included LICENSE file for details.
