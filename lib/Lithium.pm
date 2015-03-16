@@ -234,13 +234,11 @@ get qr@(/lithium)?(/v\d)?/health@ => sub {
 sub check_nodes
 {
 	debug "checking for disconnected nodes";
-	&STATS;
 	for (keys %{&NODES}) {
 		my $res = $agent->get("$NODES->{$_}{url}/status");
 		next if $res->is_success;
 		my $old_node = delete $NODES->{$_};
-		$STATS->{nodes}--;
-		NODES($NODES); STATS($STATS);
+		NODES($NODES);
 		&OLD->{$_} = $old_node;
 		OLD($OLD);
 	}
@@ -250,10 +248,11 @@ sub check_nodes
 		next unless $res->is_success;
 		my $new_old_node = delete $OLD->{$_};
 		OLD($OLD);
-		&STATS->{nodes}++; STATS($STATS);
 		&NODES->{$_} = $new_old_node;
 		NODES($NODES);
 	}
+	&STATS->{nodes} = scalar keys %{&NODES}; STATS($STATS);
+
 }
 
 sub check_sessions
