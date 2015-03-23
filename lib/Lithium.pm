@@ -260,15 +260,27 @@ sub check_sessions
 	debug "checking for stale sessions";
 	&NODES;
 	my $time = time;
-	for my $session (keys %{&SESSIONS}) {
+	for my $session (keys %{SESSIONS()}) {
 		my $node = $SESSIONS->{$session};
 		my $runtime = $time - $NODES->{$node}{sessions}{$session};
 		if ($CONFIG->{idle_session} && $runtime > $CONFIG->{idle_session}) {
-			debug "Removing old session";
-			$agent->delete("$NODES->{$node}{url}/session/$session");
+			debug "Removing old session: $session";
 			delete $NODES->{$node}{sessions}{$session};
 			delete $SESSIONS->{$session};
 			SESSIONS($SESSIONS); NODES($NODES);
+			$agent->delete("$NODES->{$node}{url}/session/$session");
+		}
+	}
+	for my $node (keys %{NODES()}) {
+		for my $session ($NODES->{node}{sessions}) {
+			my $runtime = $time - $NODES->{$node}{sessions}{$session};
+			if ($CONFIG->{idle_session} && $runtime > $CONFIG->{idle_session}) {
+				debug "Removing old session: $session";
+				delete $NODES->{$node}{sessions}{$session};
+				delete $SESSIONS->{$session};
+				SESSIONS($SESSIONS); NODES($NODES);
+				$agent->delete("$NODES->{$node}{url}/session/$session");
+			}
 		}
 	}
 }
