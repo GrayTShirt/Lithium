@@ -272,7 +272,7 @@ sub check_sessions
 		}
 	}
 	for my $node (keys %{NODES()}) {
-		for my $session ($NODES->{$node}{sessions}) {
+		for my $session (keys %{$NODES->{$node}{sessions}}) {
 			my $runtime = $time - $NODES->{$node}{sessions}{$session};
 			if ($CONFIG->{idle_session} && $runtime > $CONFIG->{idle_session}) {
 				debug "Removing old session: $session";
