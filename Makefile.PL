@@ -17,12 +17,13 @@ WriteMakefile(
 	EXE_FILES           => [
 		                     'bin/lithium',
 		                   ],
-	PREREQ_PM => {
+	TEST_REQUIRES => {
 		'Test::More'             => 0,
 		'Test::Lithium'          => 0,
+	},
+	PREREQ_PM => {
 		'Dancer'                 => 0,
 		'Dancer::Logger::Syslog' => 0,
-		'Starman'                => 0,
 		'Cache::FastMmap'        => 0,
 		'YAML::XS'               => 0,
 		'LWP::UserAgent'         => 0,

@@ -258,29 +258,30 @@ sub check_nodes
 sub check_sessions
 {
 	debug "checking for stale sessions";
-	NODES();
-	my $time = time;
-	for my $session (keys %{SESSIONS()}) {
-		my $node = $SESSIONS->{$session};
-		my $runtime = $time - $NODES->{$node}{sessions}{$session};
-		if ($CONFIG->{idle_session} && $runtime > $CONFIG->{idle_session}) {
-			debug "Removing old session: $session";
-			delete $NODES->{$node}{sessions}{$session};
-			delete $SESSIONS->{$session};
-			SESSIONS($SESSIONS); NODES($NODES);
-			$agent->delete("$NODES->{$node}{url}/session/$session");
-		}
-	}
 	for my $node (keys %{NODES()}) {
-		for my $session (keys %{$NODES->{$node}{sessions}}) {
-			my $runtime = $time - $NODES->{$node}{sessions}{$session};
-			if ($CONFIG->{idle_session} && $runtime > $CONFIG->{idle_session}) {
-				debug "Removing old session: $session";
-				delete $NODES->{$node}{sessions}{$session};
-				delete $SESSIONS->{$session};
-				SESSIONS($SESSIONS); NODES($NODES);
-				$agent->delete("$NODES->{$node}{url}/session/$session");
+		my $res = $agent->get("$node->{url}/sessions");
+		if ($res->is_success) {
+			my $data = from_json($res->content);
+			for (@{$data->{value}}) {
+				if ($_->{id}
+					&& $node->{sessions}{$_->{id}}
+					&& SESSIONS($_->{id})
+					&& time - SESSIONS($_->{id}) > $CONFIG->{idle_session}) {
+					$res = $agent->delete("$node->{url}/session/$_->{id}");
+					if ($res->is_success) {
+						STATS()->{runtime} += time - delete($SESSIONS->{$_->{id}});
+						SESSIONS($SESSIONS); STATS($STATS);
+						delete NODES()->{$node}{sessions}{$_->{id}};
+						NODES($NODES);
+						debug "Successfully deleted session: $_->{id}";
+					} else {
+						error "check_session, Failed to delete session: $_->{id}, ".$res->status_line;
+					}
+				}
 			}
+		} else {
+			error "check_session, unable to contact node: $node->{url}, status: ".$res->status_line;
+			next;
 		}
 	}
 }
@@ -355,12 +356,41 @@ sub app
 	NODES({}); SESSIONS({}); OLD({});
 	STATS({ nodes => 0, runtime => 0, sessions => 0 });
 	debug "initialized the backend";
-	my $server = Plack::Handler::Starman->new(
-			port              => $CONFIG->{port},
+	my $server;
+	if (eval 'use Plack::Handler::Gazelle; 1') {
+		info "Using Gazelle as Plack Server";
+		$server = Plack::Handler::Gazelle->new(
+			port              => $PORT,
 			workers           => $CONFIG->{workers},
-			keepalive_timeout => $CONFIG->{keepalive},
 			argv              => [__PACKAGE__,],
+			keepalive_timeout => $CONFIG->{keepalive},
 		);
+	} elsif (eval 'use Plack::Handler::Monoceros; 1') {
+		info "Using Monoceros as Plack Server";
+		$server = Plack::Handler::Monoceros->new(
+			port              => $PORT,
+			workers           => $CONFIG->{workers},
+			argv              => [__PACKAGE__,],
+			keepalive_timeout => $CONFIG->{keepalive},
+		);
+	} elsif ( eval 'use Plack::Handler::Starman; 1') {
+		info "Using Starman as Plack Server";
+		$server = Plack::Handler::Starman->new(
+			port              => $PORT,
+			workers           => $CONFIG->{workers},
+			argv              => [__PACKAGE__,],
+			keepalive_timeout => $CONFIG->{keepalive},
+		);
+	} else {
+		info "Falling back to Plack-Standalone";
+		use Plack::Handler::Standalone;
+		$server = Plack::Handler::Standalone->new(
+			port              => $PORT,
+			workers           => $CONFIG->{workers},
+			argv              => [__PACKAGE__,],
+			keepalive_timeout => $CONFIG->{keepalive},
+		);
+	}
 	debug "starting Lithium";
 	spawn_worker(sub => \&check_sessions, sleep => $CONFIG->{worker_splay});
 	spawn_worker(sub => \&check_nodes, sleep => $CONFIG->{worker_splay});
