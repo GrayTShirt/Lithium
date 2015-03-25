@@ -119,6 +119,7 @@ sub start_depends
 		close STDERR;
 		Lithium::app(
 			port         => $LITHIUM_PORT,
+			log          => 'console',
 			cache_file   => 't/cache.tmp',
 			worker_splay =>  5,
 			idle_session =>  5,

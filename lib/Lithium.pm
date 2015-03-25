@@ -258,21 +258,23 @@ sub check_nodes
 sub check_sessions
 {
 	debug "checking for stale sessions";
+	my $cur_time = time;
 	for my $node (keys %{NODES()}) {
-		my $res = $agent->get("$node->{url}/sessions");
+		my $node_v = $NODES->{$node};
+		my $res = $agent->get("$node_v->{url}/sessions");
+		NODES();
 		if ($res->is_success) {
 			my $data = from_json($res->content);
 			for (@{$data->{value}}) {
 				if ($_->{id}
-					&& $node->{sessions}{$_->{id}}
-					&& SESSIONS($_->{id})
-					&& time - SESSIONS($_->{id}) > $CONFIG->{idle_session}) {
-					$res = $agent->delete("$node->{url}/session/$_->{id}");
+					&& $node_v->{sessions}{$_->{id}}
+					&& ($cur_time - $NODES->{$node}{sessions}{$_->{id}}) > $CONFIG->{idle_session}) {
+					$res = $agent->delete("$node_v->{url}/session/$_->{id}");
 					if ($res->is_success) {
-						STATS()->{runtime} += time - delete($SESSIONS->{$_->{id}});
-						SESSIONS($SESSIONS); STATS($STATS);
-						delete NODES()->{$node}{sessions}{$_->{id}};
+						STATS()->{runtime} += time - delete $NODES->{$node}{sessions}{$_->{id}};
 						NODES($NODES);
+						delete SESSIONS()->{$_->{id}};
+						SESSIONS($SESSIONS); STATS($STATS);
 						debug "Successfully deleted session: $_->{id}";
 					} else {
 						error "check_session, Failed to delete session: $_->{id}, ".$res->status_line;
@@ -280,7 +282,7 @@ sub check_sessions
 				}
 			}
 		} else {
-			error "check_session, unable to contact node: $node->{url}, status: ".$res->status_line;
+			error "check_session, unable to contact node: $node_v->{url}, status: ".$res->status_line;
 			next;
 		}
 	}
