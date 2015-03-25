@@ -360,7 +360,7 @@ sub app
 	if (eval 'use Plack::Handler::Gazelle; 1') {
 		info "Using Gazelle as Plack Server";
 		$server = Plack::Handler::Gazelle->new(
-			port              => $PORT,
+			port              => $CONFIG->{port},
 			workers           => $CONFIG->{workers},
 			argv              => [__PACKAGE__,],
 			keepalive_timeout => $CONFIG->{keepalive},
@@ -368,7 +368,7 @@ sub app
 	} elsif (eval 'use Plack::Handler::Monoceros; 1') {
 		info "Using Monoceros as Plack Server";
 		$server = Plack::Handler::Monoceros->new(
-			port              => $PORT,
+			port              => $CONFIG->{port},
 			workers           => $CONFIG->{workers},
 			argv              => [__PACKAGE__,],
 			keepalive_timeout => $CONFIG->{keepalive},
@@ -376,7 +376,7 @@ sub app
 	} elsif ( eval 'use Plack::Handler::Starman; 1') {
 		info "Using Starman as Plack Server";
 		$server = Plack::Handler::Starman->new(
-			port              => $PORT,
+			port              => $CONFIG->{port},
 			workers           => $CONFIG->{workers},
 			argv              => [__PACKAGE__,],
 			keepalive_timeout => $CONFIG->{keepalive},
@@ -385,7 +385,7 @@ sub app
 		info "Falling back to Plack-Standalone";
 		use Plack::Handler::Standalone;
 		$server = Plack::Handler::Standalone->new(
-			port              => $PORT,
+			port              => $CONFIG->{port},
 			workers           => $CONFIG->{workers},
 			argv              => [__PACKAGE__,],
 			keepalive_timeout => $CONFIG->{keepalive},
