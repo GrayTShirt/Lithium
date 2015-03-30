@@ -136,8 +136,19 @@ get qr@(/lithium|/wd/hub)?/sessions@ => sub {
 post qr|(/wd/hub)?/session| => sub {
 	my $request = from_json(request->body);
 	for (keys %{NODES()}) {
-		next unless scalar keys %{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances};
-		next unless $request->{desiredCapabilities}{browserName} eq $NODES->{$_}{browser};
+		next if $NODES->{$_}{lock};
+		$NODES->{$_}{lock} = 1;
+		NODES($NODES);
+		unless(scalar keys %{$NODES->{$_}{sessions}} < $NODES->{$_}{max_instances}) {
+			delete $NODES->{$_}{lock};
+			NODES($NODES);
+			next;
+		}
+		unless($request->{desiredCapabilities}{browserName} eq $NODES->{$_}{browser}) {
+			delete $NODES->{$_}{lock};
+			NODES($NODES);
+			next;
+		}
 		my $res = $agent->post($NODES->{$_}{url}."/session", Content => request->body);
 		if ($res->is_success) {
 			$res = from_json($res->content);
@@ -147,10 +158,15 @@ post qr|(/wd/hub)?/session| => sub {
 			NODES()->{$_}{sessions}{$res->{sessionId}} = time;
 			SESSIONS()->{$res->{sessionId}} = $_; # Reverse hash session -> node
 			STATS()->{sessions}++;
+			delete $NODES->{$_}{lock};
 			NODES($NODES); STATS($STATS); SESSIONS($SESSIONS);
 
 			return to_json($res);
 			last;
+		} else {
+			NODES();
+			delete $NODES->{$_}{lock};
+			NODES($NODES);
 		}
 	}
 	#redirect $CONFIG->{pair}, 301
